@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Olive Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+:root { color-scheme: light; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1a2332; font-size: 13px; }
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2e6da4 100%);
+  color: #fff;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.header h1 { font-size: 17px; font-weight: 700; }
+.header p  { font-size: 11px; opacity: 0.65; margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.refresh-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.35);
+  color: #fff;
+  border-radius: 20px;
+  padding: 7px 18px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.refresh-btn:hover  { background: rgba(255,255,255,0.28); }
+.refresh-btn:active { opacity: 0.8; }
+.refresh-btn.busy   { opacity: 0.55; pointer-events: none; }
+
+.spin { display: inline-block; animation: spin 0.75s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.ts { font-size: 10px; opacity: 0.55; white-space: nowrap; }
+
+/* Range bar */
+.range-bar {
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 9px 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.range-bar label { font-size: 11px; font-weight: 600; color: #64748b; }
+.range-bar input[type=date] {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #334155;
+  outline: none;
+}
+.range-bar input:focus { border-color: #2e6da4; }
+.presets { display: flex; gap: 5px; margin-left: auto; flex-wrap: wrap; }
+.pr {
+  padding: 4px 11px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.pr:hover, .pr.on { background: #2e6da4; color: white; border-color: #2e6da4; }
+
+/* Status */
+.status {
+  font-size: 11px;
+  padding: 7px 22px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.status.hide   { display: none; }
+.status.ok     { background: #f0fdf4; color: #15803d; border-bottom: 1px solid #bbf7d0; }
+.status.err    { background: #fff5f5; color: #b91c1c; border-bottom: 1px solid #fecaca; }
+.status.load   { background: #f0f9ff; color: #0369a1; border-bottom: 1px solid #bae6fd; }
+
+/* Progress bar */
+.prog-wrap { background: #e2e8f0; height: 3px; overflow: hidden; }
+.prog-bar  { height: 3px; background: #2e6da4; width: 0%; transition: width 0.3s; }
+
+/* Layout */
+.container { padding: 18px 20px; max-width: 1400px; margin: 0 auto; }
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 11px;
+  margin-bottom: 16px;
+}
+.kpi {
+  background: white;
+  border-radius: 10px;
+  padding: 13px 14px 11px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  border-top: 3px solid var(--c);
+  transition: transform 0.12s;
+}
+.kpi:hover { transform: translateY(-1px); }
+.kpi .lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; }
+.kpi .val { font-size: 21px; font-weight: 800; color: var(--c); margin: 6px 0 2px; line-height: 1; }
+.kpi .sub { font-size: 11px; color: #94a3b8; }
+
+.charts-row { display: grid; gap: 13px; margin-bottom: 13px; }
+.r2 { grid-template-columns: 1fr 1fr; }
+.r1 { grid-template-columns: 1fr; }
+
+.card {
+  background: white;
+  border-radius: 10px;
+  padding: 14px 17px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+}
+.ct {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: #475569;
+  margin-bottom: 13px;
+  display: flex; align-items: center; gap: 7px;
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* Table */
+.tw { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: #f8fafc;
+  padding: 7px 10px;
+  text-align: right;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+thead th:first-child { text-align: left; }
+tbody td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+tbody td:first-child { text-align: left; font-weight: 600; }
+tbody tr:hover   { background: #f8fafc; }
+tbody tr.we      { background: #fffbeb; }
+tbody tr.we:hover{ background: #fef3c7; }
+.tr-total td { font-weight: 700 !important; background: #eef2f7 !important; border-top: 2px solid #cbd5e0; }
+
+.pill  { display:inline-block; padding:1px 7px; border-radius:9px; font-size:11px; font-weight:600; }
+.pb    { background:#dbeafe; color:#1d4ed8; }
+.pg    { background:#dcfce7; color:#15803d; }
+.pp    { background:#ede9fe; color:#7c3aed; }
+.mt    { color:#cbd5e0; }
+.pend  { color:#f59e0b; font-size:10px; }
+
+footer { text-align:center; font-size:10px; color:#94a3b8; padding:14px; }
+
+@media(max-width:900px) { .kpi-grid{grid-template-columns:repeat(3,1fr)} .r2{grid-template-columns:1fr} }
+@media(max-width:500px) { .kpi-grid{grid-template-columns:repeat(2,1fr)} }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🫒 Olive Dashboard</h1>
+    <p>Заказы · Чаты · Bitrix24 · WhatsApp OTP</p>
+  </div>
+  <div class="header-right">
+    <span class="ts" id="ts"></span>
+    <button class="refresh-btn" onclick="exportExcel()" style="background:rgba(22,163,74,0.25);border-color:rgba(255,255,255,0.3)">
+      ⬇ Excel
+    </button>
+    <button class="refresh-btn" id="btn" onclick="load()">
+      <span id="ico">↻</span> Обновить
+    </button>
+  </div>
+</div>
+
+<div class="range-bar">
+  <label>С</label>
+  <input type="date" id="from">
+  <label>по</label>
+  <input type="date" id="to">
+  <div class="presets">
+    <button class="pr" onclick="preset('today')">Сегодня</button>
+    <button class="pr" onclick="preset(7)">7 дней</button>
+    <button class="pr" onclick="preset(14)">14 дней</button>
+    <button class="pr on" onclick="preset('month')">Этот месяц</button>
+  </div>
+</div>
+
+<div class="prog-wrap"><div class="prog-bar" id="prog"></div></div>
+<div class="status hide" id="st"></div>
+
+<div class="container">
+  <div class="kpi-grid" id="kpis"></div>
+
+  <div class="charts-row r1">
+    <div class="card">
+      <div class="ct"><span class="dot" style="background:#16a34a"></span>Б24 — оплачено и ожидает оплаты по дням (₸)</div>
+      <canvas id="cBx" height="130"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-row r2">
+    <div class="card">
+      <div class="ct"><span class="dot" style="background:#0ea5e9"></span>Новые чаты (WhatsApp + Instagram)</div>
+      <canvas id="cChat" height="190"></canvas>
+    </div>
+    <div class="card">
+      <div class="ct"><span class="dot" style="background:#f59e0b"></span>WhatsApp OTP — отправлено / верифицировано</div>
+      <canvas id="cOtp" height="190"></canvas>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="ct" style="border-bottom:1px solid #f1f5f9;padding-bottom:12px;margin-bottom:0">
+      <span class="dot" style="background:#334155"></span>Сводная таблица по дням
+    </div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Б24 сумма</th><th>Ожид. оплаты</th><th>WA чатов</th><th>IG чатов</th>
+            <th>OTP</th><th>Верифиц.</th>
+          </tr>
+        </thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px" id="creativesCard">
+    <div class="ct" style="border-bottom:1px solid #f1f5f9;padding-bottom:12px;margin-bottom:12px">
+      <span class="dot" style="background:#e879f9"></span>Ссылки на креативы
+    </div>
+    <div id="creativesList" style="font-size:12px;line-height:1.8"></div>
+  </div>
+</div>
+
+<footer id="foot">Данные загружаются…</footer>
+
+<script>
+const KEY  = 'rMZnb6ZgsJioVEaZpFannwUeS4QA372lf6RwcasLDI7Da3qYc3EpgqmqhBKIzejI';
+const BASE = `https://olive.kz/api/reports?key=${KEY}`;
+let charts = {};
+
+// ── Utils ──
+const q  = id => document.getElementById(id);
+const fmt = n  => n ? n.toLocaleString('ru-RU') : null;
+const today = () => new Date().toISOString().slice(0,10);
+const ago   = n  => new Date(Date.now()-n*864e5).toISOString().slice(0,10);
+
+function days(from, to) {
+  const r=[], d=new Date(from+'T12:00:00'), e=new Date(to+'T12:00:00');
+  while(d<=e){ r.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
+  return r;
+}
+
+// ── Preset buttons ──
+function preset(p, el) {
+  document.querySelectorAll('.pr').forEach(b=>b.classList.remove('on'));
+  if(el) el.classList.add('on');
+  const yest = ago(1);
+  if(p==='today')       { q('from').value=today();           q('to').value=today(); }
+  else if(p==='month')  { const d=new Date(); q('from').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; q('to').value=yest; }
+  else                  { q('from').value=ago(p);            q('to').value=yest; }
+  load();
+}
+
+// ── API ──
+async function api(action, params='') {
+  const r = await fetch(`${BASE}&action=${action}${params}`);
+  if(!r.ok) throw new Error(`API ${action}: ${r.status}`);
+  return r.json();
+}
+
+// Загрузка данных Bitrix:
+// • WA/IG — параллельно по дням (from=day&to=day), быстро и надёжно
+// • B24 оплачено — широкое окно (−240 дней) с параллельной постраничной загрузкой
+async function fetchBitrixBulk(from, to) {
+  const PAY_FIELD  = 'UF_CRM_1771991929628';
+  const EXCL_STAGE = 'C13:UC_Z17HT7'; // Ожидание оплаты
+  const allDays    = days(from, to);
+
+  // ── WA/IG: по дням параллельно ──
+  const wa={}, ig={};
+  const CHUNK = 5;
+  for(let i=0; i<allDays.length; i+=CHUNK) {
+    await Promise.all(allDays.slice(i, i+CHUNK).map(async day => {
+      try {
+        let pg=1;
+        while(true) {
+          const d = await fetch(`${BASE}&action=bitrix_deals&from=${day}&to=${day}&per_page=50&page=${pg}`).then(r=>r.json());
+          for(const x of d.data||[]) {
+            const src=x.SOURCE_ID||'';
+            if(src.includes('WZ_WHATSAPP')) wa[day]=(wa[day]||0)+1;
+            if(src.includes('WZ_INSTAGRAM')) ig[day]=(ig[day]||0)+1;
+          }
+          if(!d.meta?.has_more) break;
+          if(++pg>5) break;
+        }
+      } catch(_){}
+    }));
+  }
+
+  // ── B24 оплачено: широкое окно, параллельные пачки страниц ──
+  const f2 = new Date(new Date(from+'T12:00:00') - 240*864e5).toISOString().slice(0,10);
+  const t2 = new Date(new Date(to  +'T12:00:00') + 14*864e5).toISOString().slice(0,10);
+
+  // Узнаём общее кол-во страниц по странице 1
+  let totalPages = 1;
+  let firstData  = [];
+  try {
+    const first = await fetch(`${BASE}&action=bitrix_deals&from=${f2}&to=${t2}&per_page=50&page=1`).then(r=>r.json());
+    firstData  = first.data||[];
+    const total = first.meta?.total||0;
+    totalPages = Math.ceil(total/50) || 1;
+  } catch(_){}
+
+  // Грузим все страницы параллельными пачками по 10
+  const PAGE_CHUNK = 10;
+  let allDeals = [...firstData];
+  for(let p=2; p<=totalPages; p+=PAGE_CHUNK) {
+    const batch = Array.from({length:Math.min(PAGE_CHUNK, totalPages-p+1)}, (_,i)=>p+i);
+    const results = await Promise.allSettled(
+      batch.map(pg => fetch(`${BASE}&action=bitrix_deals&from=${f2}&to=${t2}&per_page=50&page=${pg}`).then(r=>r.json()))
+    );
+    for(const res of results) {
+      if(res.status==='fulfilled') allDeals = allDeals.concat(res.value.data||[]);
+    }
+  }
+
+  // Группируем B24 по дате оплаты / дате создания + собираем креативы
+  const opp={}, pending={}, creativesByDay={};
+  for(const x of allDeals) {
+    if(String(x.CATEGORY_ID)!=='13') continue;
+    if(x.STAGE_ID===EXCL_STAGE) continue;
+    const payDay=(x[PAY_FIELD]||'').slice(0,10);
+    if(payDay) {
+      opp[payDay]=(opp[payDay]||0)+parseFloat(x.OPPORTUNITY||0);
+      // Ссылка на креатив
+      const url=(x['UF_CRM_1776178890106']||'').trim();
+      if(url && url.toLowerCase()!=='none' && url!=='отсутствует') {
+        if(!creativesByDay[payDay]) creativesByDay[payDay]=[];
+        creativesByDay[payDay].push({ title: x.TITLE||'', url, opp: parseFloat(x.OPPORTUNITY||0) });
+      }
+    } else {
+      const cd=(x.DATE_CREATE||'').slice(0,10);
+      if(cd) pending[cd]=(pending[cd]||0)+parseFloat(x.OPPORTUNITY||0);
+    }
+  }
+
+  // Итог по дням из выбранного диапазона
+  const bx={};
+  for(const day of allDays) {
+    bx[day]={ t:0, wa:wa[day]||0, ig:ig[day]||0, opp:Math.round(opp[day]||0), pending:Math.round(pending[day]||0), creatives:creativesByDay[day]||[] };
+  }
+  return bx;
+}
+
+// ── Progress ──
+let prog=0;
+function setP(v) { q('prog').style.width=v+'%'; prog=v; }
+function status(msg,type) {
+  const el=q('st'); el.textContent=msg; el.className='status '+type;
+  if(type==='ok') setTimeout(()=>el.className='status hide',3000);
+}
+
+// ── Main load ──
+async function load() {
+  const f=q('from').value, t=q('to').value;
+  if(!f||!t||f>t){ status('⚠ Укажите корректный период','err'); return; }
+
+  const btn=q('btn'), ico=q('ico');
+  btn.classList.add('busy');
+  ico.className='spin'; ico.textContent='↻';
+  status('Загрузка данных из Olive API…','load');
+  setP(5);
+
+  try {
+    // Параллельно: summary, orders, OTP
+    const [summ, ordR, otpR] = await Promise.all([
+      api('orders_summary',`&from=${f}&to=${t}`),
+      api('orders',        `&from=${f}&to=${t}&per_page=100&fields=id,price,status,created_at,period`),
+      api('whatsapp_stats',`&from=${f}&to=${t}`),
+    ]);
+    setP(30);
+
+    // Группируем заказы по дням
+    const ord = {};
+    for(const o of ordR.data||[]) {
+      const day=o.created_at.slice(0,10);
+      if(!ord[day]) ord[day]={c:0,r:0,rs:0,d:0};
+      ord[day].c++;
+      ord[day].r += o.price||0;
+      if(o.status==='sent'||o.status==='new') ord[day].rs += o.price||0;
+      ord[day].d += o.period||0;
+    }
+
+    // OTP по дням
+    const otp={};
+    for(const x of otpR.daily||[]) otp[x.day]={s:x.sent,v:x.verified};
+    setP(40);
+
+    // Bitrix — один bulk-запрос, группировка по дате оплаты
+    const allDays = days(f,t);
+    status('⟳ Загрузка сделок Bitrix24…','loading');
+    const bx = await fetchBitrixBulk(f, t);
+    setP(98);
+
+    // Рендер
+    window._bx  = bx;
+    window._otp = otp;
+    window._creatives = Object.values(bx).flatMap(b=>b.creatives||[]);
+
+    renderKPI(summ, otpR, allDays, bx);
+    renderCharts(allDays, ord, bx, otp);
+    renderTable(allDays, ord, bx, otp);
+    renderCreatives(allDays, bx);
+
+    const now=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+    q('ts').textContent='обновлено '+now;
+    q('foot').textContent=`Данные за ${f} — ${t} · обновлено ${now}`;
+    status('✓ Данные загружены ('+allDays.length+' дней)','ok');
+    setP(100);
+    setTimeout(()=>setP(0),600);
+
+  } catch(e) {
+    status('✗ Ошибка: '+e.message,'err');
+    setP(0);
+  } finally {
+    btn.classList.remove('busy');
+    ico.className=''; ico.textContent='↻';
+  }
+}
+
+// ── KPI ──
+function renderKPI(s, otp, allDays, bx) {
+  let tD=0,tO=0,tPend=0,tWA=0,tIG=0;
+  allDays.forEach(d=>{const b=bx[d]||{};tD+=b.t||0;tO+=b.opp||0;tPend+=b.pending||0;tWA+=b.wa||0;tIG+=b.ig||0;});
+  const kpis=[
+    {c:'#16a34a',l:'Б24 выручка',     v:tO.toLocaleString('ru-RU')+' ₸',                     sub:'по дате оплаты C13'},
+    {c:'#f97316',l:'Ожид. оплаты',    v:(tPend/1000).toFixed(0)+'K ₸',                       sub:'C13 — не оплачены'},
+    {c:'#7c3aed',l:'Сделок Б24',      v:tD,                                                  sub:'всего за период'},
+    {c:'#0ea5e9',l:'Чатов WA',        v:tWA,                                                 sub:'Instagram: '+tIG},
+    {c:'#f59e0b',l:'OTP всего',       v:otp.totals?.total||0,                                sub:`верификация: ${(otp.totals?.verification_rate||0).toFixed(0)}%`},
+    {c:'#2e6da4',l:'Заказов (сайт)',  v:s.total_count||0,                                    sub:`оплачено: ${s.by_status?.sent?.count||0}`},
+  ];
+  q('kpis').innerHTML=kpis.map(k=>`
+    <div class="kpi" style="--c:${k.c}">
+      <div class="lbl">${k.l}</div>
+      <div class="val">${k.v}</div>
+      <div class="sub">${k.sub}</div>
+    </div>`).join('');
+}
+
+// ── Charts ──
+const GRID={color:'#f1f5f9'};
+const XS={grid:{display:false},ticks:{maxRotation:50,minRotation:40,font:{size:10}}};
+Chart.defaults.font.family="'Segoe UI',Arial,sans-serif";
+Chart.defaults.font.size=11;
+Chart.defaults.color='#64748b';
+
+function mk(id, cfg) {
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart(q(id),cfg);
+}
+
+function renderCharts(ds, ord, bx, otp) {
+  const lbl = ds.map(d=>new Date(d+'T12:00:00').getDate()+'.'+ String(new Date(d+'T12:00:00').getMonth()+1).padStart(2,'0'));
+
+  mk('cBx',{type:'bar',data:{labels:lbl,datasets:[
+    {label:'Оплачено ₸', data:ds.map(d=>(bx[d]||{opp:0}).opp||0), backgroundColor:'#16a34a', borderRadius:3, stack:'b'},
+    {label:'Ожид. оплаты', data:ds.map(d=>(bx[d]||{pending:0}).pending||0), backgroundColor:'#fed7aa', borderRadius:3, stack:'b'},
+  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
+    scales:{x:{...XS,stacked:true},y:{grid:GRID,stacked:true,ticks:{callback:v=>v>=1000?(v/1000)+'K':v}}}}});
+
+  mk('cChat',{type:'bar',data:{labels:lbl,datasets:[
+    {label:'WhatsApp', data:ds.map(d=>(bx[d]||{wa:0}).wa||0),backgroundColor:'#0ea5e9',borderRadius:3,stack:'c'},
+    {label:'Instagram',data:ds.map(d=>(bx[d]||{ig:0}).ig||0),backgroundColor:'#e879f9',borderRadius:3,stack:'c'},
+  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
+    scales:{x:{...XS,stacked:true},y:{grid:GRID,stacked:true}}}});
+
+  mk('cOtp',{type:'line',data:{labels:lbl,datasets:[
+    {label:'Отправлено',   data:ds.map(d=>(otp[d]||{s:0}).s||0),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.1)',tension:0.3,fill:true,pointRadius:3,borderWidth:2},
+    {label:'Верифицировано',data:ds.map(d=>(otp[d]||{v:0}).v||0),borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.07)',tension:0.3,fill:true,pointRadius:3,borderWidth:2},
+  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
+    scales:{x:XS,y:{grid:GRID,min:0}}}});
+
+}
+
+// ── Table ──
+function renderTable(ds, ord, bx, otp) {
+  const WD=['вс','пн','вт','ср','чт','пт','сб'];
+  const tb=q('tb'); tb.innerHTML='';
+  let sP=0,sPnd=0,sWA=0,sIG=0,sS=0,sV=0;
+  ds.forEach(day=>{
+    const b=bx[day] ||{wa:0,ig:0,opp:0,pending:0};
+    const t=otp[day]||{s:0,v:0};
+    const dt=new Date(day+'T12:00:00'), wd=dt.getDay();
+    sP+=b.opp; sPnd+=b.pending||0; sWA+=b.wa; sIG+=b.ig; sS+=t.s; sV+=t.v;
+    const tr=document.createElement('tr');
+    if(wd===0||wd===6) tr.className='we';
+    tr.innerHTML=`
+      <td>${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')} <span style="color:#94a3b8;font-weight:400">${WD[wd]}</span></td>
+      <td>${b.opp?'<b>'+b.opp.toLocaleString('ru-RU')+' ₸</b>':'<span class="mt">—</span>'}</td>
+      <td>${b.pending?`<span style="color:#f97316;font-weight:600">${b.pending.toLocaleString('ru-RU')} ₸</span>`:'<span class="mt">—</span>'}</td>
+      <td>${b.wa?`<span class="pill pb">${b.wa}</span>`:'0'}</td>
+      <td>${b.ig?`<span class="pill pp">${b.ig}</span>`:'0'}</td>
+      <td>${t.s||'<span class="mt">—</span>'}</td>
+      <td>${t.v?`<span class="pill pg">${t.v}</span>`:'<span class="mt">—</span>'}</td>
+    `;
+    tb.appendChild(tr);
+  });
+  const foot=document.createElement('tr');
+  foot.className='tr-total';
+  foot.innerHTML=`
+    <td>ИТОГО</td>
+    <td>${sP.toLocaleString('ru-RU')} ₸</td>
+    <td style="color:#f97316">${sPnd.toLocaleString('ru-RU')} ₸</td>
+    <td>${sWA}</td><td>${sIG}</td><td>${sS}</td><td>${sV}</td>`;
+  tb.appendChild(foot);
+}
+
+// ── Креативы ──
+function renderCreatives(ds, bx) {
+  const WD=['вс','пн','вт','ср','чт','пт','сб'];
+  const el=q('creativesList');
+  let html='';
+  ds.forEach(day=>{
+    const list=(bx[day]||{}).creatives||[];
+    if(!list.length) return;
+    const dt=new Date(day+'T12:00:00');
+    const label=`${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')} ${WD[dt.getDay()]}`;
+    html+=`<div style="margin-bottom:10px"><span style="font-weight:700;color:#334155">${label}</span><br>`;
+    list.forEach(c=>{
+      const short=c.title.length>50?c.title.slice(0,50)+'…':c.title;
+      const oppStr=c.opp?` <span style="color:#16a34a;font-weight:600">${Math.round(c.opp).toLocaleString('ru-RU')} ₸</span>`:'';
+      html+=`<span style="color:#64748b;margin-left:12px">• ${short}${oppStr} — </span><a href="${c.url}" target="_blank" style="color:#2e6da4;word-break:break-all">${c.url}</a><br>`;
+    });
+    html+='</div>';
+  });
+  el.innerHTML=html||'<span style="color:#94a3b8">Нет ссылок за период</span>';
+}
+
+// ── Экспорт в Excel (CSV → .xls) ──
+function exportExcel() {
+  const from = q('from').value, to = q('to').value;
+  if(!from||!to){ alert('Сначала загрузите данные'); return; }
+
+  const WD=['вс','пн','вт','ср','чт','пт','сб'];
+  const allDays = days(from, to);
+
+  // Заголовок
+  const rows = [
+    ['Дата','День','Б24 сумма (₸)','Ожид. оплаты (₸)','WA чатов','IG чатов','OTP отправлено','OTP верифиц.']
+  ];
+
+  allDays.forEach(day => {
+    const b  = window._bx?.[day]  || {};
+    const t  = window._otp?.[day] || {};
+    const dt = new Date(day+'T12:00:00');
+    rows.push([
+      day,
+      WD[dt.getDay()],
+      b.opp     || 0,
+      b.pending || 0,
+      b.wa      || 0,
+      b.ig      || 0,
+      t.s       || 0,
+      t.v       || 0,
+    ]);
+  });
+
+  // Итого
+  rows.push([
+    'ИТОГО','',
+    rows.slice(1).reduce((s,r)=>s+r[2],0),
+    rows.slice(1).reduce((s,r)=>s+r[3],0),
+    rows.slice(1).reduce((s,r)=>s+r[4],0),
+    rows.slice(1).reduce((s,r)=>s+r[5],0),
+    rows.slice(1).reduce((s,r)=>s+r[6],0),
+    rows.slice(1).reduce((s,r)=>s+r[7],0),
+  ]);
+
+  // Добавляем лист с креативами
+  rows.push([]);
+  rows.push(['Дата','Сделка','Сумма (₸)','Ссылка на креатив']);
+  (window._creatives||[]).forEach(c=>{
+    rows.push([c.day, c.title, Math.round(c.opp)||0, c.url]);
+  });
+
+  // CSV → download
+  const csv = '﻿' + rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Olive_${from}_${to}.csv`;
+  a.click();
+}
+
+// ── Init ──
+(function() {
+  const d=new Date(), m=String(d.getMonth()+1).padStart(2,'0'), y=d.getFullYear();
+  q('from').value=`${y}-${m}-01`;
+  q('to').value=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  load();
+})();
+</script>
+</body>
+</html>
