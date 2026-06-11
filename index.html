@@ -305,7 +305,7 @@ async function api(action, params='') {
 // • B24 оплачено — широкое окно (−240 дней) с параллельной постраничной загрузкой
 async function fetchBitrixBulk(from, to) {
   const PAY_FIELD  = 'UF_CRM_1771991929628';
-  const EXCL_STAGE = 'C13:UC_Z17HT7'; // Ожидание оплаты
+  // C13:UC_Z17HT7 = Заморозка (оплачено, старт позже) — включается в выручку
   const allDays    = days(from, to);
 
   // ── WA/IG: по дням параллельно ──
@@ -360,7 +360,7 @@ async function fetchBitrixBulk(from, to) {
   const opp={}, pending={}, creativesByDay={};
   for(const x of allDeals) {
     if(String(x.CATEGORY_ID)!=='13') continue;
-    if(x.STAGE_ID===EXCL_STAGE) continue;
+    // Заморозка (C13:UC_Z17HT7) теперь включается — клиент оплатил, старт позже
     const payDay=(x[PAY_FIELD]||'').slice(0,10);
     if(payDay) {
       opp[payDay]=(opp[payDay]||0)+parseFloat(x.OPPORTUNITY||0);
