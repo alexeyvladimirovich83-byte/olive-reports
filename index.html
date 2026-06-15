@@ -255,6 +255,41 @@ footer { text-align:center; font-size:10px; color:#94a3b8; padding:14px; }
     </div>
   </div>
 
+  <div class="charts-row r2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="ct"><span class="dot" style="background:#f97316"></span>Рационы — заказы с сайта</div>
+      <canvas id="cPlans" height="200"></canvas>
+    </div>
+    <div class="card">
+      <div class="ct"><span class="dot" style="background:#7c3aed"></span>Рационы — детально</div>
+      <div class="tw">
+        <table id="tPlans">
+          <thead>
+            <tr><th>Рацион</th><th>Заказов</th><th>Выручка</th><th>%</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="periodBreakdown" style="margin-top:14px;font-size:12px"></div>
+    </div>
+  </div>
+
+  <!-- Дни подписки -->
+  <div class="card" style="margin-bottom:16px" id="periodsCard">
+    <div class="ct" style="border-bottom:1px solid #f1f5f9;padding-bottom:12px;margin-bottom:12px">
+      <span class="dot" style="background:#0ea5e9"></span>Дни подписки — заказы с сайта
+    </div>
+    <div id="periodsContent"><div style="color:#94a3b8;font-size:12px">Загрузка…</div></div>
+  </div>
+
+  <!-- Блюда по категориям -->
+  <div class="card" style="margin-bottom:16px" id="mealsCard">
+    <div class="ct" style="border-bottom:1px solid #f1f5f9;padding-bottom:12px;margin-bottom:12px">
+      <span class="dot" style="background:#16a34a"></span>Блюда — по категориям
+    </div>
+    <div id="mealsContent"><div style="color:#94a3b8;font-size:12px">Загрузка…</div></div>
+  </div>
+
   <div class="card" style="margin-bottom:16px" id="creativesCard">
     <div class="ct" style="border-bottom:1px solid #f1f5f9;padding-bottom:12px;margin-bottom:12px">
       <span class="dot" style="background:#e879f9"></span>Ссылки на креативы
@@ -442,6 +477,9 @@ async function load() {
     renderKPI(summ, otpR, allDays, bx);
     renderCharts(allDays, ord, bx, otp);
     renderTable(allDays, ord, bx, otp);
+    renderMealPlans(summ);
+    renderPeriods(summ);
+    renderMeals();
     renderCreatives(allDays, bx);
 
     const now=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
@@ -567,6 +605,152 @@ function renderCreatives(ds, bx) {
     html+='</div>';
   });
   el.innerHTML=html||'<span style="color:#94a3b8">Нет ссылок за период</span>';
+}
+
+// ── Рационы и периоды ──
+function renderMealPlans(summ) {
+  const plans = summ.by_meal_plan || [];
+  const byPeriod = summ.by_period || {};
+  const totalRev = plans.reduce((s, p) => s + (p.revenue || 0), 0);
+
+  // Donut chart
+  const COLORS = ['#f97316','#16a34a','#0ea5e9','#7c3aed','#f59e0b','#e879f9'];
+  mk('cPlans', {
+    type: 'doughnut',
+    data: {
+      labels: plans.map(p => p.plan),
+      datasets: [{
+        data: plans.map(p => p.revenue || 0),
+        backgroundColor: COLORS,
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.raw;
+              const pct = totalRev ? ((v / totalRev) * 100).toFixed(1) : 0;
+              return ` ${v.toLocaleString('ru-RU')} ₸ (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Таблица
+  const tbody = document.querySelector('#tPlans tbody');
+  tbody.innerHTML = '';
+  plans.forEach((p, i) => {
+    const pct = totalRev ? ((p.revenue / totalRev) * 100).toFixed(1) : 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLORS[i]};margin-right:5px"></span>${p.plan}</td>
+      <td>${p.count}</td>
+      <td><b>${(p.revenue || 0).toLocaleString('ru-RU')} ₸</b></td>
+      <td><span class="pill" style="background:${COLORS[i]}22;color:${COLORS[i]}">${pct}%</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  if (totalRev) {
+    const tr = document.createElement('tr');
+    tr.className = 'tr-total';
+    tr.innerHTML = `<td>Итого</td><td>${plans.reduce((s,p)=>s+p.count,0)}</td><td>${totalRev.toLocaleString('ru-RU')} ₸</td><td>100%</td>`;
+    tbody.appendChild(tr);
+  }
+
+}
+
+// ── Дни подписки ──
+function renderPeriods(summ) {
+  const byPeriod = summ.by_period || {};
+  const labels = { '1': '1 день', '5': '5 дней', '14': '14 дней', '30': '30 дней' };
+  const colors = { '1': '#f97316', '5': '#0ea5e9', '14': '#7c3aed', '30': '#16a34a' };
+  const entries = Object.entries(byPeriod).sort((a, b) => Number(a[0]) - Number(b[0]));
+  const total = entries.reduce((s, [, c]) => s + c, 0);
+  if (!entries.length) { document.getElementById('periodsContent').innerHTML = '<div style="color:#94a3b8;font-size:12px">Нет данных</div>'; return; }
+
+  const html = entries.map(([days, cnt]) => {
+    const pct = total ? ((cnt / total) * 100).toFixed(1) : 0;
+    const col = colors[days] || '#64748b';
+    const lbl = labels[days] || `${days} дн.`;
+    return `
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+          <span style="font-weight:600">${lbl}</span>
+          <span style="color:#64748b">${cnt} заказ(ов) — <b style="color:${col}">${pct}%</b></span>
+        </div>
+        <div style="background:#f1f5f9;border-radius:6px;height:10px;overflow:hidden">
+          <div style="background:${col};width:${pct}%;height:100%;border-radius:6px;transition:width 0.4s"></div>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('periodsContent').innerHTML = html +
+    `<div style="font-size:11px;color:#94a3b8;margin-top:8px">Всего заказов: ${total}</div>`;
+}
+
+// ── Блюда по категориям ──
+async function renderMeals() {
+  const el = document.getElementById('mealsContent');
+  try {
+    const CAT_NAMES = {
+      'breakfast': 'Завтраки', 'второе': 'Вторые блюда', 'салаты': 'Салаты',
+      'супы': 'Супы', 'десерты': 'Десерты', 'смузи': 'Смузи', 'выпечка': 'Выпечка'
+    };
+    const CAT_COLORS = {
+      'breakfast':'#f97316','второе':'#0ea5e9','салаты':'#16a34a',
+      'супы':'#f59e0b','десерты':'#e879f9','смузи':'#0ea5e9','выпечка':'#7c3aed'
+    };
+    let allMeals = [], pg = 1;
+    while (true) {
+      const d = await api('meals', `&per_page=100&page=${pg}`);
+      allMeals = allMeals.concat(d.data || []);
+      if (!d.meta?.has_more && pg >= Math.ceil((d.meta?.total || 0) / 100)) break;
+      if (++pg > 5) break;
+    }
+
+    // Группируем по категории
+    const cats = {};
+    for (const m of allMeals) {
+      const c = m.category || 'другое';
+      if (!cats[c]) cats[c] = { meals: [], totalPrice: 0, totalMargin: 0 };
+      cats[c].meals.push(m);
+      cats[c].totalPrice  += parseFloat(m.selling_price || 0);
+      cats[c].totalMargin += parseFloat(m.margin || 0);
+    }
+
+    const rows = Object.entries(cats)
+      .sort((a, b) => b[1].meals.length - a[1].meals.length)
+      .map(([cat, data]) => {
+        const cnt = data.meals.length;
+        const avgPrice  = cnt ? Math.round(data.totalPrice / cnt) : 0;
+        const avgMargin = cnt ? Math.round(data.totalMargin / cnt) : 0;
+        const col = CAT_COLORS[cat] || '#64748b';
+        const name = CAT_NAMES[cat] || cat;
+        return `<tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${col};margin-right:5px"></span>${name}</td>
+          <td style="text-align:center">${cnt}</td>
+          <td style="text-align:right">${avgPrice.toLocaleString('ru-RU')} ₸</td>
+          <td style="text-align:right;color:#16a34a;font-weight:600">${avgMargin.toLocaleString('ru-RU')} ₸</td>
+        </tr>`;
+      }).join('');
+
+    el.innerHTML = `
+      <div class="tw">
+        <table>
+          <thead><tr><th>Категория</th><th style="text-align:center">Кол-во</th><th style="text-align:right">Ср. цена</th><th style="text-align:right">Ср. маржа</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr class="tr-total"><td>Итого</td><td style="text-align:center">${allMeals.length}</td><td></td><td></td></tr></tfoot>
+        </table>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div style="color:#ef4444;font-size:12px">Ошибка: ${e.message}</div>`;
+  }
 }
 
 // ── Экспорт в Excel (CSV → .xls) ──
