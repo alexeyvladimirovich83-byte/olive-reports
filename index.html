@@ -366,7 +366,7 @@ async function fetchBitrixBulk(from, to) {
 
   // ── B24 оплачено: широкое окно, параллельные пачки страниц ──
   const f2 = new Date(new Date(from+'T12:00:00') - 240*864e5).toISOString().slice(0,10);
-  const t2 = new Date(new Date(to  +'T12:00:00') + 14*864e5).toISOString().slice(0,10);
+  const t2 = new Date(+new Date(to  +'T12:00:00') + 14*864e5).toISOString().slice(0,10);
 
   // Узнаём общее кол-во страниц по странице 1
   let totalPages = 1;
@@ -705,10 +705,10 @@ async function renderMeals() {
     const counts = {};
 
     // Парсим строки вида "Завтрак: 00405 Название блюда" или "Обед: 12345 Название"
-    const re = /(?:Завтрак|Обед|Ужин|Перекус|Десерт|Смузи|Перекус 2|Снэк)\s*:\s*\d+\s+([^\n\[]+)/g;
     for (const x of deals) {
       if (String(x.CATEGORY_ID) !== '13') continue;
       const comments = (x.COMMENTS || '').replace(/\[\/?\w+\]/g, ''); // убираем BBcode теги
+      const re = /(?:Завтрак|Обед|Ужин|Перекус|Десерт|Смузи|Перекус 2|Снэк)\s*:\s*\d+\s+([^\n\[]+)/g;
       let m;
       while ((m = re.exec(comments)) !== null) {
         const name = m[1].trim();
