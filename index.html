@@ -391,6 +391,9 @@ async function fetchBitrixBulk(from, to) {
     }
   }
 
+  // Сохраняем сырые сделки для статистики по блюдам
+  window._allDeals = allDeals;
+
   // Группируем B24 по дате оплаты / дате создания + собираем креативы
   const opp={}, pending={}, creativesByDay={};
   for(const x of allDeals) {
@@ -694,56 +697,46 @@ function renderPeriods(summ) {
     `<div style="font-size:11px;color:#94a3b8;margin-top:8px">Всего заказов: ${total}</div>`;
 }
 
-// ── Блюда по категориям ──
+// ── Блюда по наименованию (из COMMENTS сделок Bitrix) ──
 async function renderMeals() {
   const el = document.getElementById('mealsContent');
   try {
-    const CAT_NAMES = {
-      'breakfast': 'Завтраки', 'второе': 'Вторые блюда', 'салаты': 'Салаты',
-      'супы': 'Супы', 'десерты': 'Десерты', 'смузи': 'Смузи', 'выпечка': 'Выпечка'
-    };
-    const CAT_COLORS = {
-      'breakfast':'#f97316','второе':'#0ea5e9','салаты':'#16a34a',
-      'супы':'#f59e0b','десерты':'#e879f9','смузи':'#0ea5e9','выпечка':'#7c3aed'
-    };
-    let allMeals = [], pg = 1;
-    while (true) {
-      const d = await api('meals', `&per_page=100&page=${pg}`);
-      allMeals = allMeals.concat(d.data || []);
-      if (!d.meta?.has_more && pg >= Math.ceil((d.meta?.total || 0) / 100)) break;
-      if (++pg > 5) break;
+    const deals = window._allDeals || [];
+    const counts = {};
+
+    // Парсим строки вида "Завтрак: 00405 Название блюда" или "Обед: 12345 Название"
+    const re = /(?:Завтрак|Обед|Ужин|Перекус|Десерт|Смузи|Перекус 2|Снэк)\s*:\s*\d+\s+([^\n\[]+)/g;
+    for (const x of deals) {
+      if (String(x.CATEGORY_ID) !== '13') continue;
+      const comments = (x.COMMENTS || '').replace(/\[\/?\w+\]/g, ''); // убираем BBcode теги
+      let m;
+      while ((m = re.exec(comments)) !== null) {
+        const name = m[1].trim();
+        if (name) counts[name] = (counts[name] || 0) + 1;
+      }
     }
 
-    // Группируем по категории
-    const cats = {};
-    for (const m of allMeals) {
-      const c = m.category || 'другое';
-      if (!cats[c]) cats[c] = { meals: [], totalPrice: 0, totalMargin: 0 };
-      cats[c].meals.push(m);
-      cats[c].totalPrice  += parseFloat(m.selling_price || 0);
-      cats[c].totalMargin += parseFloat(m.margin || 0);
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (!sorted.length) {
+      el.innerHTML = '<div style="color:#94a3b8;font-size:12px">Нет данных о блюдах в выбранном периоде</div>';
+      return;
     }
 
-    const sections = Object.entries(cats)
-      .sort((a, b) => b[1].meals.length - a[1].meals.length)
-      .map(([cat, data]) => {
-        const col  = CAT_COLORS[cat] || '#64748b';
-        const name = CAT_NAMES[cat] || cat;
-        const list = data.meals.map(m =>
-          `<div style="padding:3px 0;border-bottom:1px solid #f8fafc;font-size:12px;color:#334155">${m.name}</div>`
-        ).join('');
-        return `
-          <div style="margin-bottom:16px">
-            <div style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${col};margin-bottom:6px;display:flex;align-items:center;gap:6px">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${col}"></span>
-              ${name} <span style="font-weight:400;color:#94a3b8">(${data.meals.length})</span>
-            </div>
-            ${list}
-          </div>`;
-      }).join('');
+    const maxCnt = sorted[0][1];
+    const rows = sorted.map(([name, cnt]) => {
+      const pct = ((cnt / maxCnt) * 100).toFixed(0);
+      return `
+        <div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #f8fafc">
+          <div style="flex:1;font-size:12px;color:#334155">${name}</div>
+          <div style="width:120px;background:#f1f5f9;border-radius:4px;height:6px;flex-shrink:0">
+            <div style="background:#16a34a;width:${pct}%;height:100%;border-radius:4px"></div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:#16a34a;width:28px;text-align:right">${cnt}</div>
+        </div>`;
+    }).join('');
 
-    el.innerHTML = `<div style="columns:2;column-gap:24px">${sections}</div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:8px">Всего блюд: ${allMeals.length}</div>`;
+    el.innerHTML = `<div>${rows}</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:10px">Уникальных блюд: ${sorted.length} · Всего упоминаний: ${Object.values(counts).reduce((s,v)=>s+v,0)}</div>`;
   } catch(e) {
     el.innerHTML = `<div style="color:#ef4444;font-size:12px">Ошибка: ${e.message}</div>`;
   }
