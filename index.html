@@ -509,7 +509,7 @@ async function load() {
     renderPeriods(summ);
     renderMeals();
     renderAbandonedOrders();
-    if (localStorage.getItem('metrikaToken')) loadMetrika();
+    loadMetrika();
     renderCreatives(allDays, bx);
 
     const now=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
