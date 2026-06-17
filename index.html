@@ -776,10 +776,12 @@ async function renderAbandonedOrders() {
   const tbody = document.getElementById('tbAbandoned');
   const badge = document.getElementById('abandonedBadge');
   const totalEl = document.getElementById('abandonedTotal');
+  const from = document.getElementById('from').value;
+  const to   = document.getElementById('to').value;
   try {
     let all = [], pg = 1;
     while (true) {
-      const d = await api('orders', `&status=pending_payment&per_page=50&page=${pg}&fields=id,phone,price,created_at,meal_plan`);
+      const d = await api('orders', `&status=pending_payment&from=${from}&to=${to}&per_page=50&page=${pg}&fields=id,phone,price,created_at,meal_plan`);
       all = all.concat(d.data || []);
       if (!d.meta?.has_more) break;
       if (++pg > 20) break;
