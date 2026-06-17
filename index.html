@@ -296,23 +296,7 @@ footer { text-align:center; font-size:10px; color:#94a3b8; padding:14px; }
     <div class="ct" style="border-bottom:1px solid #f1f5f9;padding-bottom:12px;margin-bottom:12px">
       <span class="dot" style="background:#fc3f1d"></span>Яндекс Метрика — посетители
     </div>
-    <div id="metrikaSetup">
-      <div style="font-size:13px;color:#334155;margin-bottom:12px">
-        <b>Шаг 1.</b> Нажми кнопку — откроется Яндекс, нажми «Разрешить»<br>
-        <a href="https://oauth.yandex.ru/authorize?response_type=token&client_id=1d0b9dd4d652455a9eb710d450ff456a" target="_blank"
-          style="display:inline-block;margin-top:8px;padding:8px 16px;background:#fc3f1d;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;font-size:12px">
-          Получить токен Метрики →
-        </a>
-      </div>
-      <div style="font-size:13px;color:#334155;margin-bottom:10px">
-        <b>Шаг 2.</b> Скопируй токен из адресной строки (часть после <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">access_token=</code> до <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">&</code>) и вставь сюда:
-      </div>
-      <div style="display:flex;gap:8px">
-        <input id="metrikaToken" type="text" placeholder="y0_AgAAAA..." style="flex:1;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;outline:none">
-        <button onclick="loadMetrika()" style="padding:8px 16px;background:#fc3f1d;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600">Загрузить</button>
-      </div>
-    </div>
-    <div id="metrikaData" style="margin-top:14px"></div>
+    <div id="metrikaData"><div style="color:#94a3b8;font-size:12px">Загрузка…</div></div>
   </div>
 
   <!-- Дни подписки -->
@@ -826,11 +810,8 @@ async function renderAbandonedOrders() {
 
 // ── Яндекс Метрика ──
 async function loadMetrika() {
-  const input = document.getElementById('metrikaToken');
-  const token = (input ? input.value.trim() : '') || localStorage.getItem('metrikaToken') || '';
+  const token = 'y0__wgBEMvS84iq94ACGMrnQyDf18z7F-3RRmxMtVC3Un5lZbtTupwsJNSA';
   const el = document.getElementById('metrikaData');
-  if (!token) { el.innerHTML = '<div style="color:#ef4444;font-size:12px">Вставьте токен</div>'; return; }
-  localStorage.setItem('metrikaToken', token);
   const from = document.getElementById('from').value;
   const to   = document.getElementById('to').value;
   el.innerHTML = '<div style="color:#94a3b8;font-size:12px">⟳ Загрузка…</div>';
@@ -935,11 +916,6 @@ function exportExcel() {
   const d=new Date(), m=String(d.getMonth()+1).padStart(2,'0'), y=d.getFullYear();
   q('from').value=`${y}-${m}-01`;
   q('to').value=new Date(Date.now()-864e5).toISOString().slice(0,10);
-  // Скрываем форму Метрики если токен уже сохранён
-  if (localStorage.getItem('metrikaToken')) {
-    const s = document.getElementById('metrikaSetup');
-    if (s) s.style.display = 'none';
-  }
   load();
 })();
 </script>
