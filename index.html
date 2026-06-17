@@ -207,6 +207,7 @@ footer { text-align:center; font-size:10px; color:#94a3b8; padding:14px; }
   <input type="date" id="to">
   <div class="presets">
     <button class="pr" onclick="preset('today')">Сегодня</button>
+    <button class="pr" onclick="preset('yesterday')">Вчера</button>
     <button class="pr" onclick="preset(7)">7 дней</button>
     <button class="pr" onclick="preset(14)">14 дней</button>
     <button class="pr on" onclick="preset('month')">Этот месяц</button>
@@ -347,9 +348,10 @@ function preset(p, el) {
   document.querySelectorAll('.pr').forEach(b=>b.classList.remove('on'));
   if(el) el.classList.add('on');
   const yest = ago(1);
-  if(p==='today')       { q('from').value=today();           q('to').value=today(); }
-  else if(p==='month')  { const d=new Date(); q('from').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; q('to').value=yest; }
-  else                  { q('from').value=ago(p);            q('to').value=yest; }
+  if(p==='today')          { q('from').value=today();  q('to').value=today(); }
+  else if(p==='yesterday') { q('from').value=yest;     q('to').value=yest; }
+  else if(p==='month')     { const d=new Date(); q('from').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; q('to').value=yest; }
+  else                     { q('from').value=ago(p);   q('to').value=yest; }
   load();
 }
 
