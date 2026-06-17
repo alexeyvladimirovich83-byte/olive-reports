@@ -818,7 +818,7 @@ async function loadMetrika() {
   try {
     const url = `https://api-metrika.yandex.net/stat/v1/data?id=104935856`
       + `&metrics=ym:s:visits,ym:s:users,ym:s:bounceRate,ym:s:pageDepth,ym:s:avgVisitDurationSeconds`
-      + `&dimensions=ym:s:date&date1=${from}&date2=${to}&sort=ym:s:date&limit=100`;
+      + `&dimensions=ym:s:date&date1=${from}&date2=${to}&sort=ym:s:date&limit=100&timezone=Asia%2FAlmaty`;
     const resp = await fetch(url, { headers: { Authorization: `OAuth ${token}` } });
     const json = await resp.json();
     if (json.errors || json.message) throw new Error(json.message || json.errors?.[0]?.message);
