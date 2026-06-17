@@ -525,6 +525,7 @@ async function load() {
     renderPeriods(summ);
     renderMeals();
     renderAbandonedOrders();
+    if (localStorage.getItem('metrikaToken')) loadMetrika();
     renderCreatives(allDays, bx);
 
     const now=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
@@ -825,9 +826,11 @@ async function renderAbandonedOrders() {
 
 // ── Яндекс Метрика ──
 async function loadMetrika() {
-  const token = document.getElementById('metrikaToken').value.trim();
+  const input = document.getElementById('metrikaToken');
+  const token = (input ? input.value.trim() : '') || localStorage.getItem('metrikaToken') || '';
   const el = document.getElementById('metrikaData');
   if (!token) { el.innerHTML = '<div style="color:#ef4444;font-size:12px">Вставьте токен</div>'; return; }
+  localStorage.setItem('metrikaToken', token);
   const from = document.getElementById('from').value;
   const to   = document.getElementById('to').value;
   el.innerHTML = '<div style="color:#94a3b8;font-size:12px">⟳ Загрузка…</div>';
@@ -865,7 +868,7 @@ async function loadMetrika() {
         <thead><tr><th>Дата</th><th>Визиты</th><th>Уникальные</th><th>Отказы</th><th>Глубина</th><th>Время</th></tr></thead>
         <tbody>${tRows}</tbody>
       </table></div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:8px;cursor:pointer" onclick="document.getElementById('metrikaSetup').style.display='';document.getElementById('metrikaData').innerHTML=''">↺ Сменить токен</div>`;
+      <div style="font-size:11px;color:#94a3b8;margin-top:8px;cursor:pointer" onclick="localStorage.removeItem('metrikaToken');document.getElementById('metrikaSetup').style.display='';document.getElementById('metrikaData').innerHTML=''">↺ Сменить токен</div>`;
   } catch(e) {
     el.innerHTML = `<div style="color:#ef4444;font-size:12px">Ошибка: ${e.message}</div>`;
   }
@@ -932,6 +935,11 @@ function exportExcel() {
   const d=new Date(), m=String(d.getMonth()+1).padStart(2,'0'), y=d.getFullYear();
   q('from').value=`${y}-${m}-01`;
   q('to').value=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  // Скрываем форму Метрики если токен уже сохранён
+  if (localStorage.getItem('metrikaToken')) {
+    const s = document.getElementById('metrikaSetup');
+    if (s) s.style.display = 'none';
+  }
   load();
 })();
 </script>
