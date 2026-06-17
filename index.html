@@ -293,17 +293,18 @@ footer { text-align:center; font-size:10px; color:#94a3b8; padding:14px; }
 
   <!-- Яндекс Метрика -->
   <div class="card" style="margin-bottom:16px" id="metrikaCard">
-    <div class="ct" style="border-bottom:1px solid #f1f5f9;padding-bottom:12px;margin-bottom:12px">
-      <span class="dot" style="background:#fc3f1d"></span>Яндекс Метрика — посетители
+    <div class="ct" style="border-bottom:1px solid #f1f5f9;padding-bottom:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <span><span class="dot" style="background:#fc3f1d"></span>Яндекс Метрика — посетители</span>
+      <a href="https://metrika.yandex.ru/dashboard?id=104935856" target="_blank" style="font-size:11px;color:#fc3f1d;text-decoration:none;font-weight:600">↗ Открыть в Метрике</a>
     </div>
-    <div id="metrikaContent">
-      <div style="font-size:12px;color:#64748b;margin-bottom:10px">Введите OAuth-токен для подключения Метрики (счётчик <b>104935856</b>):</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input id="metrikaToken" type="password" placeholder="y0_AgAAAA..." style="flex:1;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;outline:none">
-        <button onclick="loadMetrika()" style="padding:7px 14px;background:#fc3f1d;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600">Загрузить</button>
-      </div>
-      <div id="metrikaData" style="margin-top:14px"></div>
-    </div>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:8px">Необходим вход в Яндекс в этом браузере</div>
+    <iframe
+      src="https://metrika.yandex.ru/dashboard?id=104935856"
+      style="width:100%;height:600px;border:none;border-radius:8px;background:#f8fafc"
+      loading="lazy"
+      id="metrikaFrame"
+    ></iframe>
+    <div style="font-size:11px;color:#94a3b8;margin-top:6px">Если iframe не загружается — нажми «↗ Открыть в Метрике»</div>
   </div>
 
   <!-- Дни подписки -->
@@ -813,65 +814,6 @@ async function renderAbandonedOrders() {
   }
 }
 
-// ── Яндекс Метрика ──
-async function loadMetrika() {
-  const token = document.getElementById('metrikaToken').value.trim();
-  const el = document.getElementById('metrikaData');
-  if (!token) { el.innerHTML = '<div style="color:#ef4444;font-size:12px">Введите токен</div>'; return; }
-
-  const from = document.getElementById('from').value;
-  const to   = document.getElementById('to').value;
-  const counterId = '104935856';
-  el.innerHTML = '<div style="color:#94a3b8;font-size:12px">⟳ Загрузка…</div>';
-
-  try {
-    const url = `https://api-metrika.yandex.net/stat/v1/data?id=${counterId}&metrics=ym:s:visits,ym:s:users,ym:s:bounceRate,ym:s:pageDepth,ym:s:avgVisitDurationSeconds&dimensions=ym:s:date&date1=${from}&date2=${to}&sort=ym:s:date&limit=100&oauth_token=${token}`;
-    const resp = await fetch(url);
-    const json = await resp.json();
-    if (json.errors || json.message) throw new Error(json.message || json.errors?.[0]?.message || 'Ошибка API');
-
-    const rows = json.data || [];
-    let totalVisits = 0, totalUsers = 0;
-
-    const tableRows = rows.map(r => {
-      const [date] = r.dimensions.map(d => d.name);
-      const [visits, users, bounce, depth, dur] = r.metrics;
-      totalVisits += visits; totalUsers += users;
-      const d = new Date(date+'T12:00:00');
-      const WD = ['вс','пн','вт','ср','чт','пт','сб'];
-      const dateStr = `${d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})} ${WD[d.getDay()]}`;
-      return `<tr>
-        <td style="white-space:nowrap">${dateStr}</td>
-        <td>${Math.round(visits)}</td>
-        <td>${Math.round(users)}</td>
-        <td>${Math.round(bounce)}%</td>
-        <td>${depth.toFixed(1)}</td>
-        <td>${Math.round(dur)}с</td>
-      </tr>`;
-    }).join('');
-
-    el.innerHTML = `
-      <div style="display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap">
-        <div style="background:#fff7ed;border-radius:8px;padding:10px 16px;flex:1;min-width:120px">
-          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Визиты</div>
-          <div style="font-size:22px;font-weight:700;color:#f97316">${Math.round(totalVisits).toLocaleString('ru-RU')}</div>
-        </div>
-        <div style="background:#f0fdf4;border-radius:8px;padding:10px 16px;flex:1;min-width:120px">
-          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Уникальных</div>
-          <div style="font-size:22px;font-weight:700;color:#16a34a">${Math.round(totalUsers).toLocaleString('ru-RU')}</div>
-        </div>
-      </div>
-      <div class="tw"><table>
-        <thead><tr><th>Дата</th><th>Визиты</th><th>Уникальные</th><th>Отказы</th><th>Глубина</th><th>Время</th></tr></thead>
-        <tbody>${tableRows}</tbody>
-      </table></div>`;
-
-    // Сохраняем токен в памяти для переиспользования
-    window._metrikaToken = token;
-  } catch(e) {
-    el.innerHTML = `<div style="color:#ef4444;font-size:12px">Ошибка: ${e.message}</div>`;
-  }
-}
 
 // ── Экспорт в Excel (CSV → .xls) ──
 function exportExcel() {
