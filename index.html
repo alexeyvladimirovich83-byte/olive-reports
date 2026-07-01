@@ -544,10 +544,10 @@ async function load() {
       const plan = PLAN_MAP[rationId] || 'Другое';
       if (!bxPlans[plan]) bxPlans[plan] = {plan, count:0, revenue:0};
       bxPlans[plan].count++; bxPlans[plan].revenue += opp;
-      // Период из поля сделки
+      // Период из поля сделки (только валидные: 1, 5, 14, 30 дней)
       const perStr = (x['UF_CRM_1771991982812'] || '').trim();
       const perM = perStr.match(/^(\d+)/);
-      if (perM) bxPer[perM[1]] = (bxPer[perM[1]] || 0) + 1;
+      if (perM && ['1','5','14','30'].includes(perM[1])) bxPer[perM[1]] = (bxPer[perM[1]] || 0) + 1;
     }
     const bxSumm = {
       by_meal_plan: Object.values(bxPlans).sort((a,b) => b.revenue - a.revenue),
