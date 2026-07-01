@@ -538,8 +538,8 @@ async function load() {
       const payDay = (x[PAY_FIELD] || '').slice(0, 10);
       if (!payDay || payDay < f || payDay > t) continue;
       const opp = parseFloat(x.OPPORTUNITY || 0);
-      // Рацион из названия сделки
-      const m = (x.TITLE || '').match(/(\d[\s\d]*\d)\s*[кКkK][кКkK][аА]/);
+      // Рацион из названия сделки — ищем только известные значения ккал
+      const m = (x.TITLE || '').match(/(1\s*[25]00|1\s*800|2\s*500|3\s*000)\s*[кКkK]/i);
       const kcal = m ? m[1].replace(/\s+/g,'') : null;
       const plan = kcal ? (PLAN_MAP[kcal] || kcal+' Ккал') : 'Другое';
       if (!bxPlans[plan]) bxPlans[plan] = {plan, count:0, revenue:0};
