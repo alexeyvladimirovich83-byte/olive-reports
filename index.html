@@ -350,7 +350,7 @@ function preset(p, el) {
   const yest = ago(1);
   if(p==='today')          { q('from').value=today();  q('to').value=today(); }
   else if(p==='yesterday') { q('from').value=yest;     q('to').value=yest; }
-  else if(p==='month')     { const d=new Date(); q('from').value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; q('to').value=yest; }
+  else if(p==='month')     { const d=new Date(); const fm=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; q('from').value=fm; q('to').value=fm===today()?today():yest; }
   else                     { q('from').value=ago(p);   q('to').value=yest; }
   load();
 }
@@ -973,8 +973,9 @@ function exportExcel() {
 // ── Init ──
 (function() {
   const d=new Date(), m=String(d.getMonth()+1).padStart(2,'0'), y=d.getFullYear();
-  q('from').value=`${y}-${m}-01`;
-  q('to').value=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  const fm=`${y}-${m}-01`;
+  q('from').value=fm;
+  q('to').value=fm===today()?today():new Date(Date.now()-864e5).toISOString().slice(0,10);
   load();
 })();
 </script>
