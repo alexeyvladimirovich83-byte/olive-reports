@@ -531,17 +531,17 @@ async function load() {
 
     // Рационы и периоды из Bitrix (по дате оплаты)
     const PAY_FIELD = 'UF_CRM_1771991929628';
-    const PLAN_MAP = {'1200':'1 200 Ккал','1500':'1 500 Ккал','1800':'1 800 Ккал','2500':'2 500 Ккал','3000':'3 000 Ккал'};
+    const PLAN_MAP = {'325':'1 200 Ккал','327':'1 500 Ккал','329':'1 800 Ккал','331':'2 500 Ккал'};
+    const RATION_FIELD = 'UF_CRM_1771991238105';
     const bxPlans = {}, bxPer = {};
     for (const x of window._allDeals || []) {
       if (String(x.CATEGORY_ID) !== '13') continue;
       const payDay = (x[PAY_FIELD] || '').slice(0, 10);
       if (!payDay || payDay < f || payDay > t) continue;
       const opp = parseFloat(x.OPPORTUNITY || 0);
-      // Рацион из названия сделки — ищем только известные значения ккал
-      const m = (x.TITLE || '').match(/(1\s*[25]00|1\s*800|2\s*500|3\s*000)\s*[кКkK]/i);
-      const kcal = m ? m[1].replace(/\s+/g,'') : null;
-      const plan = kcal ? (PLAN_MAP[kcal] || kcal+' Ккал') : 'Другое';
+      // Рацион из поля сделки
+      const rationId = String(x[RATION_FIELD] || '');
+      const plan = PLAN_MAP[rationId] || 'Другое';
       if (!bxPlans[plan]) bxPlans[plan] = {plan, count:0, revenue:0};
       bxPlans[plan].count++; bxPlans[plan].revenue += opp;
       // Период из поля сделки
