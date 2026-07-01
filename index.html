@@ -362,6 +362,18 @@ async function api(action, params='') {
   return r.json();
 }
 
+// Загрузка ВСЕХ заказов периода (постранично), с нужными полями
+async function fetchAllOrders(f, t, fields) {
+  let all = [], pg = 1;
+  while (true) {
+    const d = await api('orders', `&from=${f}&to=${t}&per_page=200&page=${pg}&fields=${fields}`);
+    all = all.concat(d.data || []);
+    if (!d.meta?.has_more) break;
+    if (++pg > 30) break;
+  }
+  return all;
+}
+
 // Загрузка данных Bitrix:
 // • WA/IG — параллельно по дням (from=day&to=day), быстро и надёжно
 // • B24 оплачено — широкое окно (−240 дней) с параллельной постраничной загрузкой
@@ -469,24 +481,42 @@ async function load() {
   setP(5);
 
   try {
-    // Параллельно: summary, orders, OTP
-    const [summ, ordR, otpR] = await Promise.all([
+    // Параллельно: summary, orders (все страницы, с рационом), OTP
+    const [summ, allOrders, otpR] = await Promise.all([
       api('orders_summary',`&from=${f}&to=${t}`),
-      api('orders',        `&from=${f}&to=${t}&per_page=100&fields=id,price,status,created_at,period`),
+      fetchAllOrders(f, t, 'id,price,status,created_at,period,meal_plan'),
       api('whatsapp_stats',`&from=${f}&to=${t}`),
     ]);
     setP(30);
 
-    // Группируем заказы по дням
+    // Группируем заказы по дням + отдельно считаем РЕАЛЬНО ОПЛАЧЕННЫЕ
+    // (sent/new — оплачены; pending_payment/failed — НЕ считаются выручкой)
     const ord = {};
-    for(const o of ordR.data||[]) {
+    const paidPlans = {};   // planName -> {plan,count,revenue}
+    const paidPeriods = {}; // days -> count
+    for(const o of allOrders) {
       const day=o.created_at.slice(0,10);
       if(!ord[day]) ord[day]={c:0,r:0,rs:0,d:0};
       ord[day].c++;
       ord[day].r += o.price||0;
-      if(o.status==='sent'||o.status==='new') ord[day].rs += o.price||0;
+      const isPaid = o.status==='sent'||o.status==='new';
+      if(isPaid) ord[day].rs += o.price||0;
       ord[day].d += o.period||0;
+
+      if(isPaid) {
+        const plan = o.meal_plan?.name || 'Без плана';
+        if(!paidPlans[plan]) paidPlans[plan] = {plan, count:0, revenue:0};
+        paidPlans[plan].count++;
+        paidPlans[plan].revenue += o.price||0;
+
+        const per = String(o.period||'');
+        if(per) paidPeriods[per] = (paidPeriods[per]||0)+1;
+      }
     }
+    const paidSumm = {
+      by_meal_plan: Object.values(paidPlans).sort((a,b)=>b.revenue-a.revenue),
+      by_period: paidPeriods
+    };
 
     // OTP по дням
     const otp={};
@@ -499,6 +529,31 @@ async function load() {
     const bx = await fetchBitrixBulk(f, t);
     setP(98);
 
+    // Рационы и периоды из Bitrix (по дате оплаты)
+    const PAY_FIELD = 'UF_CRM_1771991929628';
+    const PLAN_MAP = {'1200':'1 200 Ккал','1500':'1 500 Ккал','1800':'1 800 Ккал','2500':'2 500 Ккал','3000':'3 000 Ккал'};
+    const bxPlans = {}, bxPer = {};
+    for (const x of window._allDeals || []) {
+      if (String(x.CATEGORY_ID) !== '13') continue;
+      const payDay = (x[PAY_FIELD] || '').slice(0, 10);
+      if (!payDay || payDay < f || payDay > t) continue;
+      const opp = parseFloat(x.OPPORTUNITY || 0);
+      // Рацион из названия сделки
+      const m = (x.TITLE || '').match(/(\d[\s\d]*\d)\s*[кКkK][кКkK][аА]/);
+      const kcal = m ? m[1].replace(/\s+/g,'') : null;
+      const plan = kcal ? (PLAN_MAP[kcal] || kcal+' Ккал') : 'Другое';
+      if (!bxPlans[plan]) bxPlans[plan] = {plan, count:0, revenue:0};
+      bxPlans[plan].count++; bxPlans[plan].revenue += opp;
+      // Период из поля сделки
+      const perStr = (x['UF_CRM_1771991982812'] || '').trim();
+      const perM = perStr.match(/^(\d+)/);
+      if (perM) bxPer[perM[1]] = (bxPer[perM[1]] || 0) + 1;
+    }
+    const bxSumm = {
+      by_meal_plan: Object.values(bxPlans).sort((a,b) => b.revenue - a.revenue),
+      by_period: bxPer
+    };
+
     // Рендер
     window._bx  = bx;
     window._otp = otp;
@@ -507,8 +562,8 @@ async function load() {
     renderKPI(summ, otpR, allDays, bx);
     renderCharts(allDays, ord, bx, otp);
     renderTable(allDays, ord, bx, otp);
-    renderMealPlans(summ);
-    renderPeriods(summ);
+    renderMealPlans(bxSumm);
+    renderPeriods(bxSumm);
     renderMeals();
     renderAbandonedOrders();
     loadMetrika();
