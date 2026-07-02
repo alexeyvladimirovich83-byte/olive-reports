@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Olive Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
 :root { color-scheme: light; }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -727,14 +728,23 @@ function renderMealPlans(summ) {
               return ` ${v.toLocaleString('ru-RU')} ₸ (${pct}%)`;
             }
           }
+        },
+        datalabels: {
+          anchor: 'end',
+          align: 'end',
+          formatter: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M ₸' : v >= 1000 ? Math.round(v/1000)+'K ₸' : v+'₸',
+          font: { size: 11, weight: '600' },
+          color: '#334155',
+          offset: 4
         }
       },
+      layout: { padding: { right: 80 } },
       scales: {
         y: { ...XS },
-        x: { grid: GRID, ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } }
+        x: { grid: GRID, ticks: { callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v }, title: { display: true, text: 'Выручка, ₸', color: '#94a3b8', font: { size: 11 } } }
       }
     }
-  });
+  , plugins: [ChartDataLabels] });
 
   // Таблица
   const tbody = document.querySelector('#tPlans tbody');
