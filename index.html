@@ -435,13 +435,14 @@ async function fetchBitrixBulk(from, to) {
   window._allDeals = allDeals;
 
   // Группируем B24 по дате оплаты / дате создания + собираем креативы
-  const opp={}, pending={}, creativesByDay={};
+  const opp={}, pending={}, creativesByDay={}, dealCnt={};
   for(const x of allDeals) {
     if(String(x.CATEGORY_ID)!=='13') continue;
     // Заморозка (C13:UC_Z17HT7) теперь включается — клиент оплатил, старт позже
     const payDay=(x[PAY_FIELD]||'').slice(0,10);
     if(payDay) {
       opp[payDay]=(opp[payDay]||0)+parseFloat(x.OPPORTUNITY||0);
+      dealCnt[payDay]=(dealCnt[payDay]||0)+1;
       // Ссылка на креатив
       const url=(x['UF_CRM_1776178890106']||'').trim();
       if(url && url.toLowerCase()!=='none' && url!=='отсутствует') {
@@ -457,7 +458,7 @@ async function fetchBitrixBulk(from, to) {
   // Итог по дням из выбранного диапазона
   const bx={};
   for(const day of allDays) {
-    bx[day]={ t:0, wa:wa[day]||0, ig:ig[day]||0, opp:Math.round(opp[day]||0), pending:Math.round(pending[day]||0), creatives:creativesByDay[day]||[] };
+    bx[day]={ t:dealCnt[day]||0, wa:wa[day]||0, ig:ig[day]||0, opp:Math.round(opp[day]||0), pending:Math.round(pending[day]||0), creatives:creativesByDay[day]||[] };
   }
   return bx;
 }
