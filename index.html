@@ -223,14 +223,14 @@ footer { text-align:center; font-size:10px; color:#94a3b8; padding:14px; }
   <div class="charts-row r1">
     <div class="card">
       <div class="ct"><span class="dot" style="background:#16a34a"></span>Б24 — оплачено и ожидает оплаты по дням (₸)</div>
-      <canvas id="cBx" height="130"></canvas>
+      <canvas id="cBx" height="550"></canvas>
     </div>
   </div>
 
   <div class="charts-row r2">
     <div class="card">
       <div class="ct"><span class="dot" style="background:#0ea5e9"></span>Новые чаты (WhatsApp + Instagram)</div>
-      <canvas id="cChat" height="190"></canvas>
+      <canvas id="cChat" height="550"></canvas>
     </div>
     <div class="card">
       <div class="ct"><span class="dot" style="background:#f59e0b"></span>WhatsApp OTP — отправлено / верифицировано</div>
@@ -259,7 +259,7 @@ footer { text-align:center; font-size:10px; color:#94a3b8; padding:14px; }
   <div class="charts-row r2" style="margin-bottom:16px">
     <div class="card">
       <div class="ct"><span class="dot" style="background:#f97316"></span>Рационы — заказы с сайта</div>
-      <canvas id="cPlans" height="200"></canvas>
+      <canvas id="cPlans" height="160"></canvas>
     </div>
     <div class="card">
       <div class="ct"><span class="dot" style="background:#7c3aed"></span>Рационы — детально</div>
@@ -623,14 +623,14 @@ function renderCharts(ds, ord, bx, otp) {
   mk('cBx',{type:'bar',data:{labels:lbl,datasets:[
     {label:'Оплачено ₸', data:ds.map(d=>(bx[d]||{opp:0}).opp||0), backgroundColor:'#16a34a', borderRadius:3, stack:'b'},
     {label:'Ожид. оплаты', data:ds.map(d=>(bx[d]||{pending:0}).pending||0), backgroundColor:'#fed7aa', borderRadius:3, stack:'b'},
-  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
-    scales:{x:{...XS,stacked:true},y:{grid:GRID,stacked:true,ticks:{callback:v=>v>=1000?(v/1000)+'K':v}}}}});
+  ]},options:{indexAxis:'y',responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
+    scales:{y:{...XS,stacked:true},x:{grid:GRID,stacked:true,ticks:{callback:v=>v>=1000?(v/1000)+'K':v}}}}});
 
   mk('cChat',{type:'bar',data:{labels:lbl,datasets:[
     {label:'WhatsApp', data:ds.map(d=>(bx[d]||{wa:0}).wa||0),backgroundColor:'#0ea5e9',borderRadius:3,stack:'c'},
     {label:'Instagram',data:ds.map(d=>(bx[d]||{ig:0}).ig||0),backgroundColor:'#e879f9',borderRadius:3,stack:'c'},
-  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
-    scales:{x:{...XS,stacked:true},y:{grid:GRID,stacked:true}}}});
+  ]},options:{indexAxis:'y',responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
+    scales:{y:{...XS,stacked:true},x:{grid:GRID,stacked:true}}}});
 
   mk('cOtp',{type:'line',data:{labels:lbl,datasets:[
     {label:'Отправлено',   data:ds.map(d=>(otp[d]||{s:0}).s||0),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.1)',tension:0.3,fill:true,pointRadius:3,borderWidth:2},
@@ -700,23 +700,25 @@ function renderMealPlans(summ) {
   const byPeriod = summ.by_period || {};
   const totalRev = plans.reduce((s, p) => s + (p.revenue || 0), 0);
 
-  // Donut chart
+  // Horizontal bar chart
   const COLORS = ['#f97316','#16a34a','#0ea5e9','#7c3aed','#f59e0b','#e879f9'];
   mk('cPlans', {
-    type: 'doughnut',
+    type: 'bar',
     data: {
       labels: plans.map(p => p.plan),
       datasets: [{
+        label: 'Выручка ₸',
         data: plans.map(p => p.revenue || 0),
-        backgroundColor: COLORS,
-        borderWidth: 2,
-        borderColor: '#fff'
+        backgroundColor: COLORS.slice(0, plans.length),
+        borderRadius: 4,
+        borderWidth: 0
       }]
     },
     options: {
+      indexAxis: 'y',
       responsive: true,
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 11 } } },
+        legend: { display: false },
         tooltip: {
           callbacks: {
             label: ctx => {
@@ -726,6 +728,10 @@ function renderMealPlans(summ) {
             }
           }
         }
+      },
+      scales: {
+        y: { ...XS },
+        x: { grid: GRID, ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } }
       }
     }
   });
