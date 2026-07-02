@@ -622,14 +622,14 @@ function mk(id, cfg) {
 function renderCharts(ds, ord, bx, otp) {
   const lbl = ds.map(d=>new Date(d+'T12:00:00').getDate()+'.'+ String(new Date(d+'T12:00:00').getMonth()+1).padStart(2,'0'));
   mk('cBx',{type:'line',data:{labels:lbl,datasets:[
-    {label:'Оплачено ₸', data:ds.map(d=>(bx[d]||{}).opp||0), borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,0.1)', tension:0.3, fill:true, pointRadius:3, borderWidth:2},
-    {label:'Ожид. оплаты', data:ds.map(d=>(bx[d]||{}).pending||0), borderColor:'#f97316', backgroundColor:'rgba(249,115,22,0.07)', tension:0.3, fill:true, pointRadius:3, borderWidth:2},
+    {label:'Оплачено ₸', data:ds.map(d=>(bx[d]||{}).opp||0), borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,0.15)', stepped:'before', fill:true, pointRadius:4, pointHoverRadius:6, borderWidth:2},
+    {label:'Ожид. оплаты', data:ds.map(d=>(bx[d]||{}).pending||0), borderColor:'#f97316', backgroundColor:'rgba(249,115,22,0.1)', stepped:'before', fill:true, pointRadius:4, pointHoverRadius:6, borderWidth:2},
   ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
     scales:{x:XS,y:{grid:GRID,min:0,ticks:{callback:v=>v>=1000?(v/1000)+'K':v}}}}});
 
   mk('cChat',{type:'line',data:{labels:lbl,datasets:[
-    {label:'WhatsApp', data:ds.map(d=>(bx[d]||{}).wa||0), borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,0.1)', tension:0.3, fill:true, pointRadius:3, borderWidth:2},
-    {label:'Instagram',data:ds.map(d=>(bx[d]||{}).ig||0), borderColor:'#e879f9', backgroundColor:'rgba(232,121,249,0.07)', tension:0.3, fill:true, pointRadius:3, borderWidth:2},
+    {label:'WhatsApp', data:ds.map(d=>(bx[d]||{}).wa||0), borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,0.15)', stepped:'before', fill:true, pointRadius:4, pointHoverRadius:6, borderWidth:2},
+    {label:'Instagram',data:ds.map(d=>(bx[d]||{}).ig||0), borderColor:'#e879f9', backgroundColor:'rgba(232,121,249,0.1)', stepped:'before', fill:true, pointRadius:4, pointHoverRadius:6, borderWidth:2},
   ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
     scales:{x:XS,y:{grid:GRID,min:0}}}});
 
