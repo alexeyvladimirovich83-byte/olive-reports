@@ -223,14 +223,14 @@ footer { text-align:center; font-size:10px; color:#94a3b8; padding:14px; }
   <div class="charts-row r1">
     <div class="card">
       <div class="ct"><span class="dot" style="background:#16a34a"></span>Б24 — оплачено и ожидает оплаты по дням (₸)</div>
-      <canvas id="cBx" height="550"></canvas>
+      <canvas id="cBx" height="130"></canvas>
     </div>
   </div>
 
   <div class="charts-row r2">
     <div class="card">
       <div class="ct"><span class="dot" style="background:#0ea5e9"></span>Новые чаты (WhatsApp + Instagram)</div>
-      <canvas id="cChat" height="550"></canvas>
+      <canvas id="cChat" height="190"></canvas>
     </div>
     <div class="card">
       <div class="ct"><span class="dot" style="background:#f59e0b"></span>WhatsApp OTP — отправлено / верифицировано</div>
@@ -620,17 +620,17 @@ function mk(id, cfg) {
 function renderCharts(ds, ord, bx, otp) {
   const lbl = ds.map(d=>new Date(d+'T12:00:00').getDate()+'.'+ String(new Date(d+'T12:00:00').getMonth()+1).padStart(2,'0'));
 
-  mk('cBx',{type:'bar',data:{labels:lbl,datasets:[
-    {label:'Оплачено ₸', data:ds.map(d=>(bx[d]||{opp:0}).opp||0), backgroundColor:'#16a34a', borderRadius:3, stack:'b'},
-    {label:'Ожид. оплаты', data:ds.map(d=>(bx[d]||{pending:0}).pending||0), backgroundColor:'#fed7aa', borderRadius:3, stack:'b'},
-  ]},options:{indexAxis:'y',responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
-    scales:{y:{...XS,stacked:true},x:{grid:GRID,stacked:true,ticks:{callback:v=>v>=1000?(v/1000)+'K':v}}}}});
+  mk('cBx',{type:'line',data:{labels:lbl,datasets:[
+    {label:'Оплачено ₸', data:ds.map(d=>(bx[d]||{opp:0}).opp||0), borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,0.1)', tension:0.3, fill:true, pointRadius:3, borderWidth:2},
+    {label:'Ожид. оплаты', data:ds.map(d=>(bx[d]||{pending:0}).pending||0), borderColor:'#f97316', backgroundColor:'rgba(249,115,22,0.07)', tension:0.3, fill:true, pointRadius:3, borderWidth:2},
+  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
+    scales:{x:XS,y:{grid:GRID,min:0,ticks:{callback:v=>v>=1000?(v/1000)+'K':v}}}}});
 
-  mk('cChat',{type:'bar',data:{labels:lbl,datasets:[
-    {label:'WhatsApp', data:ds.map(d=>(bx[d]||{wa:0}).wa||0),backgroundColor:'#0ea5e9',borderRadius:3,stack:'c'},
-    {label:'Instagram',data:ds.map(d=>(bx[d]||{ig:0}).ig||0),backgroundColor:'#e879f9',borderRadius:3,stack:'c'},
-  ]},options:{indexAxis:'y',responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
-    scales:{y:{...XS,stacked:true},x:{grid:GRID,stacked:true}}}});
+  mk('cChat',{type:'line',data:{labels:lbl,datasets:[
+    {label:'WhatsApp', data:ds.map(d=>(bx[d]||{wa:0}).wa||0), borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,0.1)', tension:0.3, fill:true, pointRadius:3, borderWidth:2},
+    {label:'Instagram',data:ds.map(d=>(bx[d]||{ig:0}).ig||0), borderColor:'#e879f9', backgroundColor:'rgba(232,121,249,0.07)', tension:0.3, fill:true, pointRadius:3, borderWidth:2},
+  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
+    scales:{x:XS,y:{grid:GRID,min:0}}}});
 
   mk('cOtp',{type:'line',data:{labels:lbl,datasets:[
     {label:'Отправлено',   data:ds.map(d=>(otp[d]||{s:0}).s||0),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.1)',tension:0.3,fill:true,pointRadius:3,borderWidth:2},
