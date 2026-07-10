@@ -438,7 +438,7 @@ async function fetchBitrixBulk(from, to) {
   const opp={}, pending={}, creativesByDay={}, dealCnt={};
   for(const x of allDeals) {
     if(String(x.CATEGORY_ID)!=='13') continue;
-    // Заморозка (C13:UC_Z17HT7) теперь включается — клиент оплатил, старт позже
+    // Заморозка (C13:UC_Z17HT7) включается — клиент оплатил, старт позже
     const payDay=(x[PAY_FIELD]||'').slice(0,10);
     if(payDay) {
       opp[payDay]=(opp[payDay]||0)+parseFloat(x.OPPORTUNITY||0);
@@ -849,6 +849,24 @@ async function renderAbandonedOrders() {
   const totalEl = document.getElementById('abandonedTotal');
   const from = document.getElementById('from').value;
   const to   = document.getElementById('to').value;
+
+  // Нормализация телефона: только последние 10 цифр
+  const normPhone = p => (p||'').replace(/\D/g,'').slice(-10);
+
+  // Телефоны из ОПЛАЧЕННЫХ сделок Битрикс (есть дата оплаты)
+  const PAY_FIELD = 'UF_CRM_1771991929628';
+  const paidPhones = new Set();
+  for (const x of window._allDeals || []) {
+    if (String(x.CATEGORY_ID) !== '13') continue;
+    if (!(x[PAY_FIELD]||'').slice(0,10)) continue;
+    // Телефон берём из заголовка сделки или PHONE (если есть)
+    const phones = [x.TITLE||'', ...(x.PHONE||[]).map(p=>p.VALUE||'')];
+    for (const ph of phones) {
+      const n = normPhone(ph);
+      if (n.length >= 9) paidPhones.add(n);
+    }
+  }
+
   try {
     let all = [], pg = 1;
     while (true) {
@@ -857,26 +875,39 @@ async function renderAbandonedOrders() {
       if (!d.meta?.has_more) break;
       if (++pg > 20) break;
     }
-    // Сортировка: новые сверху
     all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    badge.textContent = all.length;
-    const totalSum = all.reduce((s, o) => s + (o.price || 0), 0);
-    totalEl.textContent = `Всего: ${all.length} заказов · Сумма: ${totalSum.toLocaleString('ru-RU')} ₸`;
+    const realAbandoned = all.filter(o => !paidPhones.has(normPhone(o.phone)));
+    const paidInBitrix  = all.filter(o =>  paidPhones.has(normPhone(o.phone)));
+
+    badge.textContent = realAbandoned.length;
+    const totalSum = realAbandoned.reduce((s, o) => s + (o.price || 0), 0);
+    totalEl.textContent = `Не оплачено: ${realAbandoned.length} · ${totalSum.toLocaleString('ru-RU')} ₸`
+      + (paidInBitrix.length ? ` · ✅ Оплачено в Б24: ${paidInBitrix.length}` : '');
 
     const WD = ['вс','пн','вт','ср','чт','пт','сб'];
-    tbody.innerHTML = all.map(o => {
+    const rowHTML = (o, paid) => {
       const dt = new Date(o.created_at);
       const dateStr = isNaN(dt) ? o.created_at.slice(0,10)
         : `${dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})} ${WD[dt.getDay()]}`;
       const plan = o.meal_plan?.name || '—';
-      return `<tr>
+      const tag = paid
+        ? `<span style="background:#dcfce7;color:#16a34a;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600">Оплачен в Б24</span>`
+        : '';
+      return `<tr style="${paid?'opacity:0.55':''}">
         <td style="white-space:nowrap">${dateStr}</td>
-        <td style="font-weight:600;color:#ef4444">${(o.price||0).toLocaleString('ru-RU')} ₸</td>
-        <td>${o.phone || '—'}</td>
+        <td style="font-weight:600;color:${paid?'#16a34a':'#ef4444'}">${(o.price||0).toLocaleString('ru-RU')} ₸</td>
+        <td>${o.phone || '—'} ${tag}</td>
         <td>${plan}</td>
       </tr>`;
-    }).join('') || '<tr><td colspan="4" style="color:#94a3b8;text-align:center">Нет брошенных заказов</td></tr>';
+    };
+
+    const rows = [
+      ...realAbandoned.map(o => rowHTML(o, false)),
+      ...paidInBitrix.map(o => rowHTML(o, true)),
+    ].join('');
+
+    tbody.innerHTML = rows || '<tr><td colspan="4" style="color:#94a3b8;text-align:center">Нет брошенных заказов</td></tr>';
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="4" style="color:#ef4444">Ошибка: ${e.message}</td></tr>`;
   }
