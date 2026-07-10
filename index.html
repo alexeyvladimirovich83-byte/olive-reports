@@ -591,10 +591,13 @@ async function load() {
 function renderKPI(s, otp, allDays, bx) {
   let tD=0,tO=0,tPend=0,tWA=0,tIG=0;
   allDays.forEach(d=>{const b=bx[d]||{};tD+=b.t||0;tO+=b.opp||0;tPend+=b.pending||0;tWA+=b.wa||0;tIG+=b.ig||0;});
+  const avgCheck = tD > 0 ? Math.round(tO / tD) : 0;
+  const avgCheckSite = s.avg_price ? Math.round(s.avg_price) : 0;
   const kpis=[
     {c:'#16a34a',l:'Б24 выручка',     v:tO.toLocaleString('ru-RU')+' ₸',                     sub:'по дате оплаты C13'},
     {c:'#f97316',l:'Ожид. оплаты',    v:(tPend/1000).toFixed(0)+'K ₸',                       sub:'C13 — не оплачены'},
     {c:'#7c3aed',l:'Сделок Б24',      v:tD,                                                  sub:'всего за период'},
+    {c:'#e11d48',l:'Средний чек Б24', v:avgCheck ? avgCheck.toLocaleString('ru-RU')+' ₸' : '—', sub: avgCheckSite ? `сайт: ${avgCheckSite.toLocaleString('ru-RU')} ₸` : 'сайт: —'},
     {c:'#0ea5e9',l:'Чатов WA',        v:tWA,                                                 sub:'Instagram: '+tIG},
     {c:'#f59e0b',l:'OTP всего',       v:otp.totals?.total||0,                                sub:`верификация: ${(otp.totals?.verification_rate||0).toFixed(0)}%`},
     {c:'#2e6da4',l:'Заказов (сайт)',  v:s.total_count||0,                                    sub:`оплачено: ${s.by_status?.sent?.count||0}`},
