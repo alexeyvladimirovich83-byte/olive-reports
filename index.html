@@ -678,25 +678,24 @@ function renderCharts(ds, ord, bx, otp) {
     plugins: DL ? [DL] : []
   });
 
-  const otpTotals = ds.map(d => (otp[d]||{s:0}).s||0);
   mk('cOtp', {
     type: 'bar',
     data: {labels: lbl, datasets: [
-      {label:'Отправлено',    data:ds.map(d=>(otp[d]||{s:0}).s||0), backgroundColor:'#f59e0b', borderRadius:3, stack:'o'},
-      {label:'Верифицировано',data:ds.map(d=>(otp[d]||{v:0}).v||0), backgroundColor:'#16a34a', borderRadius:3, stack:'o'},
+      {label:'Отправлено',    data:ds.map(d=>(otp[d]||{s:0}).s||0), backgroundColor:'#f59e0b', borderRadius:3},
+      {label:'Верифицировано',data:ds.map(d=>(otp[d]||{v:0}).v||0), backgroundColor:'#16a34a', borderRadius:3},
     ]},
     options: {
       responsive: true,
       plugins: {
         legend: {position:'top', labels:{boxWidth:10, padding:8}},
         datalabels: DL ? {
-          display: ctx => ctx.datasetIndex === 0 && otpTotals[ctx.dataIndex] > 0,
+          display: ctx => (ctx.dataset.data[ctx.dataIndex] || 0) > 0,
           anchor:'end', align:'end', offset:2,
-          formatter: (_, ctx) => otpTotals[ctx.dataIndex] || '',
+          formatter: v => v || '',
           font:{size:9, weight:'600'}, color:'#334155'
         } : false
       },
-      scales: {x:{...XS, stacked:true}, y:{grid:GRID, min:0, stacked:true}}
+      scales: {x:XS, y:{grid:GRID, min:0}}
     },
     plugins: DL ? [DL] : []
   });
