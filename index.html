@@ -626,24 +626,34 @@ function renderCharts(ds, ord, bx, otp) {
   const lbl = ds.map(d=>new Date(d+'T12:00:00').getDate()+'.'+ String(new Date(d+'T12:00:00').getMonth()+1).padStart(2,'0'));
   // Сумма оплачено+ожидает по каждому дню — для подписи над столбцом
   const bxTotals = ds.map(d => ((bx[d]||{}).opp||0) + ((bx[d]||{}).pending||0));
-  mk('cBx',{type:'bar',data:{labels:lbl,datasets:[
-    {label:'Оплачено ₸',   data:ds.map(d=>(bx[d]||{}).opp||0),     backgroundColor:'#16a34a', borderRadius:3, stack:'b'},
-    {label:'Ожид. оплаты', data:ds.map(d=>(bx[d]||{}).pending||0),  backgroundColor:'#fed7aa', borderRadius:3, stack:'b'},
-  ]},options:{responsive:true,
-    plugins:{
-      legend:{position:'top',labels:{boxWidth:10,padding:8}},
-      datalabels:{
-        display: ctx => ctx.datasetIndex === 1 && bxTotals[ctx.dataIndex] > 0,
-        anchor:'end', align:'end', offset:2,
-        formatter: (_,ctx) => {
-          const v = bxTotals[ctx.dataIndex];
-          return v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? Math.round(v/1000)+'K' : v;
-        },
-        font:{size:9, weight:'600'}, color:'#334155'
+  const DL = typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : null;
+  mk('cBx', {
+    type: 'bar',
+    data: {labels: lbl, datasets: [
+      {label:'Оплачено ₸',   data:ds.map(d=>(bx[d]||{}).opp||0),    backgroundColor:'#16a34a', borderRadius:3, stack:'b'},
+      {label:'Ожид. оплаты', data:ds.map(d=>(bx[d]||{}).pending||0), backgroundColor:'#fed7aa', borderRadius:3, stack:'b'},
+    ]},
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {position:'top', labels:{boxWidth:10, padding:8}},
+        datalabels: DL ? {
+          display: ctx => ctx.datasetIndex === 1 && bxTotals[ctx.dataIndex] > 0,
+          anchor:'end', align:'end', offset:2,
+          formatter: (_, ctx) => {
+            const v = bxTotals[ctx.dataIndex];
+            return v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? Math.round(v/1000)+'K' : String(v);
+          },
+          font:{size:9, weight:'600'}, color:'#334155'
+        } : false
+      },
+      scales: {
+        x: {...XS, stacked:true},
+        y: {grid:GRID, min:0, stacked:true, ticks:{callback:v=>v>=1000?(v/1000)+'K':v}}
       }
     },
-    scales:{x:{...XS,stacked:true},y:{grid:GRID,min:0,stacked:true,ticks:{callback:v=>v>=1000?(v/1000)+'K':v}}}
-  , plugins:[ChartDataLabels]});
+    plugins: DL ? [DL] : []
+  });
 
   mk('cChat',{type:'line',data:{labels:lbl,datasets:[
     {label:'WhatsApp', data:ds.map(d=>(bx[d]||{}).wa||0), borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,0.15)', stepped:'before', fill:true, pointRadius:4, pointHoverRadius:6, borderWidth:2},
