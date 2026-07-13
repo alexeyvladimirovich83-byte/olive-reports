@@ -655,17 +655,51 @@ function renderCharts(ds, ord, bx, otp) {
     plugins: DL ? [DL] : []
   });
 
-  mk('cChat',{type:'line',data:{labels:lbl,datasets:[
-    {label:'WhatsApp', data:ds.map(d=>(bx[d]||{}).wa||0), borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,0.15)', stepped:'before', fill:true, pointRadius:4, pointHoverRadius:6, borderWidth:2},
-    {label:'Instagram',data:ds.map(d=>(bx[d]||{}).ig||0), borderColor:'#e879f9', backgroundColor:'rgba(232,121,249,0.1)', stepped:'before', fill:true, pointRadius:4, pointHoverRadius:6, borderWidth:2},
-  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
-    scales:{x:XS,y:{grid:GRID,min:0}}}});
+  const chatTotals = ds.map(d => ((bx[d]||{}).wa||0) + ((bx[d]||{}).ig||0));
+  mk('cChat', {
+    type: 'bar',
+    data: {labels: lbl, datasets: [
+      {label:'WhatsApp', data:ds.map(d=>(bx[d]||{}).wa||0), backgroundColor:'#0ea5e9', borderRadius:3, stack:'c'},
+      {label:'Instagram',data:ds.map(d=>(bx[d]||{}).ig||0), backgroundColor:'#e879f9', borderRadius:3, stack:'c'},
+    ]},
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {position:'top', labels:{boxWidth:10, padding:8}},
+        datalabels: DL ? {
+          display: ctx => ctx.datasetIndex === 1 && chatTotals[ctx.dataIndex] > 0,
+          anchor:'end', align:'end', offset:2,
+          formatter: (_, ctx) => chatTotals[ctx.dataIndex] || '',
+          font:{size:9, weight:'600'}, color:'#334155'
+        } : false
+      },
+      scales: {x:{...XS, stacked:true}, y:{grid:GRID, min:0, stacked:true}}
+    },
+    plugins: DL ? [DL] : []
+  });
 
-  mk('cOtp',{type:'line',data:{labels:lbl,datasets:[
-    {label:'Отправлено',   data:ds.map(d=>(otp[d]||{s:0}).s||0),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.1)',tension:0.3,fill:true,pointRadius:3,borderWidth:2},
-    {label:'Верифицировано',data:ds.map(d=>(otp[d]||{v:0}).v||0),borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.07)',tension:0.3,fill:true,pointRadius:3,borderWidth:2},
-  ]},options:{responsive:true,plugins:{legend:{position:'top',labels:{boxWidth:10,padding:8}}},
-    scales:{x:XS,y:{grid:GRID,min:0}}}});
+  const otpTotals = ds.map(d => (otp[d]||{s:0}).s||0);
+  mk('cOtp', {
+    type: 'bar',
+    data: {labels: lbl, datasets: [
+      {label:'Отправлено',    data:ds.map(d=>(otp[d]||{s:0}).s||0), backgroundColor:'#f59e0b', borderRadius:3, stack:'o'},
+      {label:'Верифицировано',data:ds.map(d=>(otp[d]||{v:0}).v||0), backgroundColor:'#16a34a', borderRadius:3, stack:'o'},
+    ]},
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {position:'top', labels:{boxWidth:10, padding:8}},
+        datalabels: DL ? {
+          display: ctx => ctx.datasetIndex === 0 && otpTotals[ctx.dataIndex] > 0,
+          anchor:'end', align:'end', offset:2,
+          formatter: (_, ctx) => otpTotals[ctx.dataIndex] || '',
+          font:{size:9, weight:'600'}, color:'#334155'
+        } : false
+      },
+      scales: {x:{...XS, stacked:true}, y:{grid:GRID, min:0, stacked:true}}
+    },
+    plugins: DL ? [DL] : []
+  });
 
 }
 
