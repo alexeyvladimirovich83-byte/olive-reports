@@ -181,6 +181,12 @@ footer { text-align:center; font-size:10px; color:#94a3b8; padding:14px; }
 
 @media(max-width:900px) { .kpi-grid{grid-template-columns:repeat(4,1fr)} .r2{grid-template-columns:1fr} }
 @media(max-width:500px) { .kpi-grid{grid-template-columns:repeat(2,1fr)} }
+
+/* Plan */
+.plan-bar { background:#f1f5f9; border-radius:6px; height:12px; overflow:hidden; margin-top:4px; }
+.plan-bar-fill { height:100%; border-radius:6px; transition:width .4s; }
+.plan-inp { border:1px solid #e2e8f0; border-radius:6px; padding:5px 9px; font-size:13px; width:150px; color:#334155; }
+.plan-inp:focus { outline:none; border-color:#2e6da4; }
 </style>
 </head>
 <body>
@@ -219,12 +225,42 @@ footer { text-align:center; font-size:10px; color:#94a3b8; padding:14px; }
 <div class="status hide" id="st"></div>
 
 <div class="container">
+
+  <!-- План продаж -->
+  <div class="card" style="margin-bottom:16px" id="salesPlanCard">
+    <div class="ct" style="border-bottom:1px solid #f1f5f9;padding-bottom:10px;margin-bottom:14px">
+      <span class="dot" style="background:#2e6da4"></span>План продаж
+    </div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:5px">На месяц (₸)</div>
+        <input type="number" id="planMonth" class="plan-inp" placeholder="5 000 000" oninput="savePlan();autoFillPlan()">
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:5px">На неделю (₸)</div>
+        <input type="number" id="planWeek" class="plan-inp" placeholder="авто" oninput="savePlan()">
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;margin-bottom:5px">На день (₸)</div>
+        <input type="number" id="planDay" class="plan-inp" placeholder="авто" oninput="savePlan()">
+      </div>
+    </div>
+    <div id="planProgress" style="margin-top:16px"></div>
+  </div>
+
   <div class="kpi-grid" id="kpis"></div>
 
   <div class="charts-row r1">
     <div class="card">
-      <div class="ct"><span class="dot" style="background:#16a34a"></span>Б24 — оплачено и ожидает оплаты по дням (₸)</div>
+      <div class="ct"><span class="dot" style="background:#16a34a"></span>Статистика продаж — Б24 оплачено и ожидает (₸)</div>
       <canvas id="cBx" height="160"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-row r1">
+    <div class="card">
+      <div class="ct"><span class="dot" style="background:#f97316"></span>Рационы и клиенты по дням — из Битрикс24</div>
+      <canvas id="cRations" height="130"></canvas>
     </div>
   </div>
 
@@ -253,6 +289,25 @@ footer { text-align:center; font-size:10px; color:#94a3b8; padding:14px; }
           </tr>
         </thead>
         <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Weekly Dashboard -->
+  <div class="card" style="margin-bottom:16px" id="weeklyCard">
+    <div class="ct" style="border-bottom:1px solid #f1f5f9;padding-bottom:12px;margin-bottom:14px">
+      <span class="dot" style="background:#2e6da4"></span>Weekly Dashboard
+    </div>
+    <canvas id="cWeekly" height="140" style="margin-bottom:16px"></canvas>
+    <div class="tw">
+      <table id="tWeekly">
+        <thead>
+          <tr>
+            <th style="text-align:left">Неделя</th>
+            <th>Б24 выручка</th><th>Ожидает</th><th>Сделок</th><th>WA чатов</th><th>IG чатов</th><th>% плана</th>
+          </tr>
+        </thead>
+        <tbody id="tbWeekly"><tr><td colspan="7" style="color:#94a3b8;text-align:center">Загрузка…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -435,7 +490,7 @@ async function fetchBitrixBulk(from, to) {
   window._allDeals = allDeals;
 
   // Группируем B24 по дате оплаты / дате создания + собираем креативы
-  const opp={}, pending={}, creativesByDay={}, dealCnt={};
+  const opp={}, pending={}, creativesByDay={}, dealCnt={}, rationDays={};
   for(const x of allDeals) {
     if(String(x.CATEGORY_ID)!=='13') continue;
     // Заморозка (C13:UC_Z17HT7) включается — клиент оплатил, старт позже
@@ -443,6 +498,10 @@ async function fetchBitrixBulk(from, to) {
     if(payDay) {
       opp[payDay]=(opp[payDay]||0)+parseFloat(x.OPPORTUNITY||0);
       dealCnt[payDay]=(dealCnt[payDay]||0)+1;
+      // Рацион-дни: период подписки (1/5/14/30)
+      const perStr=(x['UF_CRM_1771991982812']||'').trim();
+      const perM=perStr.match(/^(\d+)/);
+      if(perM && ['1','5','14','30'].includes(perM[1])) rationDays[payDay]=(rationDays[payDay]||0)+parseInt(perM[1]);
       // Ссылка на креатив
       const url=(x['UF_CRM_1776178890106']||'').trim();
       if(url && url.toLowerCase()!=='none' && url!=='отсутствует') {
@@ -458,7 +517,7 @@ async function fetchBitrixBulk(from, to) {
   // Итог по дням из выбранного диапазона
   const bx={};
   for(const day of allDays) {
-    bx[day]={ t:dealCnt[day]||0, wa:wa[day]||0, ig:ig[day]||0, opp:Math.round(opp[day]||0), pending:Math.round(pending[day]||0), creatives:creativesByDay[day]||[] };
+    bx[day]={ t:dealCnt[day]||0, wa:wa[day]||0, ig:ig[day]||0, opp:Math.round(opp[day]||0), pending:Math.round(pending[day]||0), creatives:creativesByDay[day]||[], rd:rationDays[day]||0 };
   }
   return bx;
 }
@@ -561,8 +620,13 @@ async function load() {
     window._otp = otp;
     window._creatives = Object.values(bx).flatMap(b=>b.creatives||[]);
 
+    let tBxActual = 0;
+    allDays.forEach(d => { tBxActual += (bx[d]||{}).opp||0; });
+
     renderKPI(summ, otpR, allDays, bx);
+    renderPlanProgress(tBxActual, allDays);
     renderCharts(allDays, ord, bx, otp);
+    renderWeekly(allDays, bx);
     renderTable(allDays, ord, bx, otp);
     renderMealPlans(bxSumm);
     renderPeriods(bxSumm);
@@ -585,6 +649,152 @@ async function load() {
     btn.classList.remove('busy');
     ico.className=''; ico.textContent='↻';
   }
+}
+
+// ── План продаж ──
+function loadPlan() {
+  try {
+    const p = JSON.parse(localStorage.getItem('olivePlan')||'{}');
+    if(p.month) q('planMonth').value = p.month;
+    if(p.week)  q('planWeek').value  = p.week;
+    if(p.day)   q('planDay').value   = p.day;
+  } catch(_) {}
+}
+function savePlan() {
+  localStorage.setItem('olivePlan', JSON.stringify({
+    month: q('planMonth').value,
+    week:  q('planWeek').value,
+    day:   q('planDay').value
+  }));
+}
+function autoFillPlan() {
+  const m = parseFloat(q('planMonth').value||0);
+  if(!m) return;
+  if(!q('planWeek').value) q('planWeek').value = Math.round(m / 4.33);
+  if(!q('planDay').value)  q('planDay').value  = Math.round(m / 30);
+  savePlan();
+}
+function renderPlanProgress(actual, allDays) {
+  const planMonth = parseFloat(q('planMonth').value||0);
+  const planWeek  = parseFloat(q('planWeek').value||0) || (planMonth ? Math.round(planMonth/4.33) : 0);
+  const planDay   = parseFloat(q('planDay').value||0)  || (planMonth ? Math.round(planMonth/30) : 0);
+  const n = allDays.length;
+  const planForPeriod = planDay ? Math.round(planDay * n) : 0;
+
+  const pct   = v => v > 0 ? Math.min(Math.round(actual/v*100), 200) : 0;
+  const color  = p => p >= 100 ? '#16a34a' : p >= 70 ? '#f59e0b' : '#ef4444';
+
+  const items = [
+    planForPeriod ? { l: `За выбранный период (${n} дн.)`, plan: planForPeriod,  p: pct(planForPeriod) } : null,
+    planMonth     ? { l: 'Месячный план',                   plan: planMonth,      p: pct(planMonth) }     : null,
+    planWeek      ? { l: 'Недельный план',                  plan: planWeek,       p: pct(planWeek) }      : null,
+  ].filter(Boolean);
+
+  if(!items.length) {
+    q('planProgress').innerHTML = '<div style="color:#94a3b8;font-size:12px">Введите план выше — увидите % исполнения</div>';
+    return;
+  }
+  q('planProgress').innerHTML = items.map(it => `
+    <div style="margin-bottom:11px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="font-weight:600">${it.l}: ${it.plan.toLocaleString('ru-RU')} ₸</span>
+        <span style="font-weight:700;color:${color(it.p)}">${it.p}% &nbsp;·&nbsp; факт: ${actual.toLocaleString('ru-RU')} ₸</span>
+      </div>
+      <div class="plan-bar"><div class="plan-bar-fill" style="width:${Math.min(it.p,100)}%;background:${color(it.p)}"></div></div>
+    </div>`).join('');
+}
+
+// ── Weekly Dashboard ──
+function renderWeekly(allDays, bx) {
+  const weekMap = {};
+  for(const day of allDays) {
+    const d = new Date(day+'T12:00:00');
+    const dow = d.getDay();
+    const mon = new Date(d);
+    mon.setDate(d.getDate() - (dow===0 ? 6 : dow-1));
+    const wk = mon.toISOString().slice(0,10);
+    if(!weekMap[wk]) weekMap[wk] = {mon, days:[], opp:0, pending:0, t:0, wa:0, ig:0};
+    weekMap[wk].days.push(day);
+    const b = bx[day]||{};
+    weekMap[wk].opp     += b.opp||0;
+    weekMap[wk].pending += b.pending||0;
+    weekMap[wk].t       += b.t||0;
+    weekMap[wk].wa      += b.wa||0;
+    weekMap[wk].ig      += b.ig||0;
+  }
+  const weeks = Object.keys(weekMap).sort();
+  if(!weeks.length) return;
+
+  const planWeek = parseFloat(q('planWeek').value||0);
+  const DL = typeof ChartDataLabels !== 'undefined' ? ChartDataLabels : null;
+
+  const wLbl = weeks.map(wk => {
+    const s = weekMap[wk].mon;
+    const e = new Date(s.getTime()+6*864e5);
+    return `${s.getDate()}.${String(s.getMonth()+1).padStart(2,'0')}–${e.getDate()}.${String(e.getMonth()+1).padStart(2,'0')}`;
+  });
+  const wTotals = weeks.map(wk => weekMap[wk].opp + weekMap[wk].pending);
+
+  mk('cWeekly', {
+    type: 'bar',
+    data: {labels: wLbl, datasets: [
+      {label:'Оплачено ₸', data:weeks.map(wk=>weekMap[wk].opp),     backgroundColor:'#16a34a', borderRadius:3, stack:'w'},
+      {label:'Ожидает ₸',  data:weeks.map(wk=>weekMap[wk].pending),  backgroundColor:'#fed7aa', borderRadius:3, stack:'w'},
+      ...(planWeek ? [{
+        label:'План', type:'line',
+        data: weeks.map(()=>planWeek),
+        borderColor:'#2e6da4', backgroundColor:'transparent',
+        borderWidth:2, borderDash:[5,4], pointRadius:0, stack:undefined
+      }] : [])
+    ]},
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {position:'top', labels:{boxWidth:10, padding:8}},
+        datalabels: DL ? {
+          display: ctx => ctx.type!=='line' && ctx.datasetIndex===1 && wTotals[ctx.dataIndex]>0,
+          anchor:'end', align:'end', offset:2,
+          formatter: (_, ctx) => { const v=wTotals[ctx.dataIndex]; return v>=1000000?(v/1e6).toFixed(1)+'M':v>=1000?Math.round(v/1000)+'K':String(v); },
+          font:{size:10, weight:'600'}, color:'#334155'
+        } : false
+      },
+      scales: {
+        x: {...XS, stacked:true},
+        y: {grid:GRID, min:0, stacked:true, ticks:{callback:v=>v>=1000000?(v/1e6).toFixed(1)+'M':v>=1000?(v/1000)+'K':v}}
+      }
+    },
+    plugins: DL ? [DL] : []
+  });
+
+  const tbody = q('tbWeekly');
+  tbody.innerHTML = '';
+  let totOpp=0, totPend=0, totT=0, totWA=0, totIG=0;
+  for(const wk of weeks) {
+    const w = weekMap[wk];
+    totOpp+=w.opp; totPend+=w.pending; totT+=w.t; totWA+=w.wa; totIG+=w.ig;
+    const p = planWeek ? Math.round(w.opp/planWeek*100) : null;
+    const col = p!=null ? (p>=100?'#16a34a':p>=70?'#f59e0b':'#ef4444') : '#94a3b8';
+    const pStr = p!=null ? `<span style="font-weight:700;color:${col}">${p}%</span>` : '—';
+    const s = w.mon, e = new Date(s.getTime()+6*864e5);
+    const lbl = `${s.getDate()}.${String(s.getMonth()+1).padStart(2,'0')}–${e.getDate()}.${String(e.getMonth()+1).padStart(2,'0')}`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="text-align:left">${lbl}</td>
+      <td><b>${w.opp.toLocaleString('ru-RU')} ₸</b></td>
+      <td style="color:#f97316">${w.pending.toLocaleString('ru-RU')} ₸</td>
+      <td>${w.t}</td><td>${w.wa}</td><td>${w.ig}</td><td>${pStr}</td>`;
+    tbody.appendChild(tr);
+  }
+  const totalP = planWeek && weeks.length ? Math.round(totOpp/(planWeek*weeks.length)*100) : null;
+  const foot = document.createElement('tr');
+  foot.className='tr-total';
+  foot.innerHTML = `
+    <td>ИТОГО (${weeks.length} нед.)</td>
+    <td>${totOpp.toLocaleString('ru-RU')} ₸</td>
+    <td style="color:#f97316">${totPend.toLocaleString('ru-RU')} ₸</td>
+    <td>${totT}</td><td>${totWA}</td><td>${totIG}</td>
+    <td>${totalP!=null?totalP+'%':'—'}</td>`;
+  tbody.appendChild(foot);
 }
 
 // ── KPI ──
@@ -700,6 +910,28 @@ function renderCharts(ds, ord, bx, otp) {
     plugins: DL ? [DL] : []
   });
 
+  // ── Рационы и клиенты по дням ──
+  mk('cRations', {
+    type: 'bar',
+    data: {labels: lbl, datasets: [
+      {label:'Рацион-дней',data:ds.map(d=>(bx[d]||{}).rd||0), backgroundColor:'#f97316', borderRadius:3},
+      {label:'Клиентов',   data:ds.map(d=>(bx[d]||{}).t||0),  backgroundColor:'#7c3aed', borderRadius:3},
+    ]},
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {position:'top', labels:{boxWidth:10, padding:8}},
+        datalabels: DL ? {
+          display: ctx => (ctx.dataset.data[ctx.dataIndex] || 0) > 0,
+          anchor:'end', align:'end', offset:2,
+          formatter: v => v || '',
+          font:{size:9, weight:'600'}, color:'#334155'
+        } : false
+      },
+      scales: {x:XS, y:{grid:GRID, min:0}}
+    },
+    plugins: DL ? [DL] : []
+  });
 }
 
 // ── Table ──
@@ -1080,6 +1312,7 @@ function exportExcel() {
 
 // ── Init ──
 (function() {
+  loadPlan();
   const d=new Date(), m=String(d.getMonth()+1).padStart(2,'0'), y=d.getFullYear();
   const fm=`${y}-${m}-01`;
   q('from').value=fm;
