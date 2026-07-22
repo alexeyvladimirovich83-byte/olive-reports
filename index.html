@@ -559,11 +559,11 @@ async function load() {
   setP(5);
 
   try {
-    // Параллельно: summary, orders (все страницы, с рационом), OTP
-    const [summ, allOrders, otpR] = await Promise.all([
-      api('orders_summary',`&from=${f}&to=${t}`),
+    // Параллельно: summary (опционально), orders (все страницы, с рационом), OTP
+    const [summRaw, allOrders, otpR] = await Promise.all([
+      api('orders_summary',`&from=${f}&to=${t}`).catch(()=>null),
       fetchAllOrders(f, t, 'id,price,status,created_at,period,meal_plan,phone'),
-      api('whatsapp_stats',`&from=${f}&to=${t}`),
+      api('whatsapp_stats',`&from=${f}&to=${t}`).catch(()=>({daily:[],totals:{}})),
     ]);
     setP(30);
 
@@ -595,6 +595,7 @@ async function load() {
       by_meal_plan: Object.values(paidPlans).sort((a,b)=>b.revenue-a.revenue),
       by_period: paidPeriods
     };
+    const summ = summRaw || paidSumm;
 
     // OTP по дням
     const otp={};
