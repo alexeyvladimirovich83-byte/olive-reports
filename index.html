@@ -1230,14 +1230,9 @@ async function renderAbandonedOrders() {
     };
     const uniqueAbandoned = dedup(trueAbandoned);
 
-    // Уникальные купившие (для счётчика) — по телефону
-    const uniqueBoughtPhones = new Set([...boughtOnSite, ...paidInBitrixList].map(o => normPhone(o.phone)));
-
     badge.textContent = uniqueAbandoned.length;
     const totalSum = uniqueAbandoned.reduce((s, o) => s + (o.price || 0), 0);
-    let summary = `Не оплачено: ${uniqueAbandoned.length} · ${totalSum.toLocaleString('ru-RU')} ₸`;
-    if (uniqueBoughtPhones.size) summary += ` · ✅ Уже купили: ${uniqueBoughtPhones.size}`;
-    totalEl.textContent = summary;
+    totalEl.textContent = `Не оплачено: ${uniqueAbandoned.length} · ${totalSum.toLocaleString('ru-RU')} ₸`;
 
     const WD = ['вс','пн','вт','ср','чт','пт','сб'];
     const rowHTML = o => {
