@@ -1362,10 +1362,8 @@ function exportExcel() {
 // ── Init ──
 (function() {
   loadPlan();
-  const d=new Date(), m=String(d.getMonth()+1).padStart(2,'0'), y=d.getFullYear();
-  const fm=`${y}-${m}-01`;
-  q('from').value=fm;
-  q('to').value=fm===today()?today():new Date(Date.now()-864e5).toISOString().slice(0,10);
+  q('from').value=today();
+  q('to').value=today();
   load();
 })();
 </script>
