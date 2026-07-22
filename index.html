@@ -1237,8 +1237,9 @@ async function renderAbandonedOrders() {
     const WD = ['вс','пн','вт','ср','чт','пт','сб'];
     const rowHTML = o => {
       const dt = new Date(o.created_at);
+      const timeStr = isNaN(dt) ? '' : ` ${dt.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`;
       const dateStr = isNaN(dt) ? o.created_at.slice(0,10)
-        : `${dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})} ${WD[dt.getDay()]}`;
+        : `${dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})} ${WD[dt.getDay()]}${timeStr}`;
       return `<tr>
         <td style="white-space:nowrap">${dateStr}</td>
         <td style="font-weight:600;color:#ef4444">${(o.price||0).toLocaleString('ru-RU')} ₸</td>
