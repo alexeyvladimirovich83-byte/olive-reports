@@ -1223,35 +1223,36 @@ async function renderAbandonedOrders() {
       else                     trueAbandoned.push(o);
     }
 
-    badge.textContent = trueAbandoned.length;
-    const totalSum = trueAbandoned.reduce((s, o) => s + (o.price || 0), 0);
-    let summary = `Не оплачено: ${trueAbandoned.length} · ${totalSum.toLocaleString('ru-RU')} ₸`;
-    if (boughtOnSite.length)     summary += ` · ✅ Купил на сайте: ${boughtOnSite.length}`;
-    if (paidInBitrixList.length) summary += ` · ✅ Оплачен в Б24: ${paidInBitrixList.length}`;
+    // Дедупликация по телефону — оставляем последний заказ на каждый номер
+    const dedup = arr => {
+      const seen = new Set();
+      return arr.filter(o => { const n = normPhone(o.phone); if (seen.has(n)) return false; seen.add(n); return true; });
+    };
+    const uniqueAbandoned = dedup(trueAbandoned);
+
+    // Уникальные купившие (для счётчика) — по телефону
+    const uniqueBoughtPhones = new Set([...boughtOnSite, ...paidInBitrixList].map(o => normPhone(o.phone)));
+
+    badge.textContent = uniqueAbandoned.length;
+    const totalSum = uniqueAbandoned.reduce((s, o) => s + (o.price || 0), 0);
+    let summary = `Не оплачено: ${uniqueAbandoned.length} · ${totalSum.toLocaleString('ru-RU')} ₸`;
+    if (uniqueBoughtPhones.size) summary += ` · ✅ Уже купили: ${uniqueBoughtPhones.size}`;
     totalEl.textContent = summary;
 
     const WD = ['вс','пн','вт','ср','чт','пт','сб'];
-    const rowHTML = (o, tag) => {
+    const rowHTML = o => {
       const dt = new Date(o.created_at);
       const dateStr = isNaN(dt) ? o.created_at.slice(0,10)
         : `${dt.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'})} ${WD[dt.getDay()]}`;
-      const plan = o.meal_plan?.name || '—';
-      const isPaid = !!tag;
-      const tagHtml = tag ? `<span style="padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;${tag.style}">${tag.label}</span>` : '';
-      return `<tr style="${isPaid?'opacity:0.55':''}">
+      return `<tr>
         <td style="white-space:nowrap">${dateStr}</td>
-        <td style="font-weight:600;color:${isPaid?'#16a34a':'#ef4444'}">${(o.price||0).toLocaleString('ru-RU')} ₸</td>
-        <td>${o.phone || '—'} ${tagHtml}</td>
-        <td>${plan}</td>
+        <td style="font-weight:600;color:#ef4444">${(o.price||0).toLocaleString('ru-RU')} ₸</td>
+        <td>${o.phone || '—'}</td>
+        <td>${o.meal_plan?.name || '—'}</td>
       </tr>`;
     };
 
-    const rows = [
-      ...trueAbandoned.map(o => rowHTML(o, null)),
-      ...boughtOnSite.map(o => rowHTML(o, {label:'✓ Купил на сайте', style:'background:#dcfce7;color:#16a34a'})),
-      ...paidInBitrixList.map(o => rowHTML(o, {label:'✓ Оплачен в Б24', style:'background:#dbeafe;color:#1d4ed8'})),
-    ].join('');
-
+    const rows = uniqueAbandoned.map(o => rowHTML(o)).join('');
     tbody.innerHTML = rows || '<tr><td colspan="4" style="color:#94a3b8;text-align:center">Нет брошенных заказов</td></tr>';
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="4" style="color:#ef4444">Ошибка: ${e.message}</td></tr>`;
